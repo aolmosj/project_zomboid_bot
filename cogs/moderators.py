@@ -15,7 +15,7 @@ import random
 from subprocess import check_output, STDOUT
 import time
 from datetime import datetime
-from SourceRcon import SourceRcon
+from rcon.source import rcon
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -28,7 +28,6 @@ MODERATOR_ROLES = os.getenv('MODERATOR_ROLES')
 WHITELIST_ROLES = os.getenv('WHITELIST_ROLES')
 LOG_PATH = os.getenv('LOG_PATH', "/home/steam/Zomboid/Logs")
 SERVER_PATH = os.getenv('SERVER_PATH', "C:\Program Files (x86)\Steam\steamapps\common\Project Zomboid Dedicated Server")
-RCON_PATH = os.getenv('RCON_PATH','./')
 ADMIN_ROLES = ADMIN_ROLES.split(',')
 WHITELIST_ROLES = WHITELIST_ROLES.split(',')
 IGNORE_CHANNELS = os.getenv('IGNORE_CHANNELS')
@@ -227,9 +226,14 @@ async def restart_server(ctx):
 
 async def rcon_command(ctx, command):
     try:
-        sr = SourceRcon(RCONSERVER, int(RCONPORT), RCONPASS)
-        r = sr.rcon(" ".join(command))
-        return r.decode('utf-8')
+        # sr = SourceRcon(RCONSERVER, int(RCONPORT), RCONPASS)
+        # r = sr.rcon(" ".join(command))
+        # return r.decode('utf-8')
+        response = await rcon(
+            " ".join(command),
+            host=RCONSERVER, port=int(RCONPORT), passwd=RCONPASS
+        )
+        return response
     except Exception as e:
         print(e)
 
