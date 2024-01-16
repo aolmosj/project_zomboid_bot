@@ -40,15 +40,11 @@ GUILD = os.getenv('DISCORD_GUILD')
 ADMIN_ROLES = os.getenv('ADMIN_ROLES')
 MODERATOR_ROLES = os.getenv('MODERATOR_ROLES')
 WHITELIST_ROLES = os.getenv('WHITELIST_ROLES')
-LOG_PATH = os.getenv('LOG_PATH', "/home/steam/Zomboid/Logs")
-SERVER_PATH = os.getenv('SERVER_PATH', "C:\Program Files (x86)\Steam\steamapps\common\Project Zomboid Dedicated Server")
-RCON_PATH = os.getenv('RCON_PATH','./')
 ADMIN_ROLES = ADMIN_ROLES.split(',')
 WHITELIST_ROLES = WHITELIST_ROLES.split(',')
 IGNORE_CHANNELS = os.getenv('IGNORE_CHANNELS')
 SERVER_ADDRESS = os.getenv('SERVER_ADDRESS')
 NOTIFICATION_CHANNEL = os.getenv('NOTIFICATION_CHANNEL')
-RESTART_CMD = os.getenv('RESTART_CMD', 'sudo systemctl restart Project-Zomboid')
 
 try:
     IGNORE_CHANNELS = IGNORE_CHANNELS.split(',')
@@ -56,10 +52,8 @@ except:
     IGNORE_CHANNELS = ""
 intents = discord.Intents.default()
 intents.members = True
-# bot = commands.Bot(command_prefix='!', intents=intents)
 access_levels = ['admin', 'none', 'moderator']
 block_notified = list()
-client = discord.Client(intents=intents)
 
 # Below cogs represents our folder our cogs are in. Following is the file name. So 'meme.py' in cogs, would be cogs.meme
 # Think of it like a dot path import
@@ -67,49 +61,7 @@ initial_extensions = ['cogs.users',
                       'cogs.moderators',
                       'cogs.admins']
 
-# bot = commands.Bot(command_prefix='!', description='A Rewrite Cog Example')
-bot = commands.Bot(command_prefix='!', intents=intents)
-
-# Here we load our extensions(cogs) listed above in [initial_extensions].
-if __name__ == '__main__':
-    for extension in initial_extensions:
-        bot.load_extension(extension)
-
-
-
-
-# async def pzplayers():
-#     plist = list()
-#     c_run = ""
-#     c_run = await rcon_command(None, ["players"])
-#     c_run = c_run.split('\n')[1:-1]
-#     return len(c_run)
-
-# async def status_task():
-#     while True:
-#         _serverUp = await IsServerRunning()
-#         if _serverUp:
-#             playercount = 0
-#             try:
-#                 playercount = await pzplayers()
-#             except Exception as e:
-#                 print(e)
-#                 await asyncio.sleep(20)
-#                 continue
-              
-#             await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"{playercount} survivors online"))
-#         else:
-#             await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"Server offline"))
-#         await asyncio.sleep(20)
-
-# @bot.event
-# async def on_ready():
-#     bot.loop.create_task(status_task())
-
-# print("Starting bot")
-# bot.run(TOKEN)
-
-class ExampleBot(commands.Bot):
+class PZBot(commands.Bot):
     def __init__(self):
         # initialize our bot instance, make sure to pass your intents!
         # for this example, we'll just have everything enabled
@@ -128,5 +80,5 @@ class ExampleBot(commands.Bot):
         for extension in initial_extensions:
             await self.load_extension(extension)
         
-
-ExampleBot().run(TOKEN)
+print("Starting bot")
+PZBot().run(TOKEN)

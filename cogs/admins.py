@@ -1,5 +1,3 @@
-import discord
-from discord.ext import commands
 import string
 import os
 import socket
@@ -282,14 +280,6 @@ class AdminCommands(commands.Cog):
             response = f"{ctx.author}, you don't have admin rights."
         await ctx.send(response)
 
-    # @commands.command(pass_context=True)
-    # async def pzrestartserver(self, ctx):
-    #     """Restart the PZ server"""
-    #     await IsChannelAllowed(ctx)
-    #     if await IsAdmin(ctx):
-    #         bot.loop.create_task(restart_server(ctx))
-# usually you’d use cogs in extensions
-# you would then define a global async function named 'setup', and it would take 'bot' as its only parameter
 async def setup(bot):
     # finally, adding the cog to the bot
     await bot.add_cog(AdminCommands(bot=bot))        
