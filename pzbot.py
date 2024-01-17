@@ -29,7 +29,7 @@ import random
 from subprocess import check_output, STDOUT
 import time
 from datetime import datetime
-from SourceRcon import SourceRcon
+
 # Setup environment
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -67,6 +67,9 @@ class PZBot(commands.Bot):
         # for this example, we'll just have everything enabled
         super().__init__(
             command_prefix="!",
+            activity=discord.Activity(type=discord.ActivityType.custom, 
+            name="custom",
+            state="Type !help"),
             intents=discord.Intents.all()
         )
     
