@@ -29,6 +29,16 @@ async def init_db():
                 log_path        TEXT
             )
         ''')
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS pz_users (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id        INTEGER NOT NULL,
+                discord_user_id INTEGER NOT NULL,
+                pz_username     TEXT NOT NULL,
+                created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(guild_id, discord_user_id)
+            )
+        ''')
         await db.commit()
     _cache.clear()
 
@@ -75,3 +85,35 @@ async def delete_guild_config(guild_id):
         await db.execute('DELETE FROM guild_config WHERE guild_id = ?', (guild_id,))
         await db.commit()
     _cache.pop(guild_id, None)
+
+
+async def get_pz_user(guild_id, discord_user_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            'SELECT * FROM pz_users WHERE guild_id = ? AND discord_user_id = ?',
+            (guild_id, discord_user_id)
+        )
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+
+async def get_all_pz_users(guild_id):
+    """Retorna lista de dicts con todos los usuarios PZ del guild."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            'SELECT * FROM pz_users WHERE guild_id = ? ORDER BY created_at',
+            (guild_id,)
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+
+async def add_pz_user(guild_id, discord_user_id, pz_username):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            'INSERT INTO pz_users (guild_id, discord_user_id, pz_username) VALUES (?, ?, ?)',
+            (guild_id, discord_user_id, pz_username)
+        )
+        await db.commit()

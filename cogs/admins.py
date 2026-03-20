@@ -1,5 +1,7 @@
+import discord
 from discord.ext import commands
 from lib.common import rcon_command, IsChannelAllowed, IsAdmin
+from lib.guild_config import get_all_pz_users
 
 access_levels = ['admin', 'none', 'moderator']
 
@@ -30,6 +32,42 @@ class AdminCommands(commands.Cog):
         else:
             response = f"{ctx.author}, you don't have admin rights."
         await ctx.send(response)
+
+
+    @commands.command()
+    async def pzusers(self, ctx):
+        """Muestra todos los usuarios PZ registrados en el servidor."""
+        if not await IsChannelAllowed(ctx):
+            return
+        if not await IsAdmin(ctx):
+            await ctx.send(f"{ctx.author}, you don't have admin rights.")
+            return
+
+        users = await get_all_pz_users(ctx.guild.id)
+
+        if not users:
+            embed = discord.Embed(
+                title="Usuarios de Project Zomboid",
+                description="No hay usuarios registrados",
+                color=discord.Color.green()
+            )
+            await ctx.send(embed=embed)
+            return
+
+        # Paginar en embeds de 25 fields cada uno
+        for i in range(0, len(users), 25):
+            chunk = users[i:i + 25]
+            embed = discord.Embed(
+                title="Usuarios de Project Zomboid",
+                color=discord.Color.green()
+            )
+            for user in chunk:
+                embed.add_field(
+                    name=user['pz_username'],
+                    value=f"<@{user['discord_user_id']}> — {user['created_at']}",
+                    inline=False
+                )
+            await ctx.send(embed=embed)
 
 
 async def setup(bot):

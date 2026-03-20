@@ -1,8 +1,105 @@
-import string
-import random
 import discord
 from discord.ext import commands
-from lib.common import rcon_command, IsChannelAllowed, require_config
+from lib.common import rcon_command, rcon_interaction_command, IsChannelAllowed, require_config
+from lib.guild_config import get_pz_user, add_pz_user
+
+
+class RequestAccessModal(discord.ui.Modal, title="Crear usuario de Project Zomboid"):
+    username = discord.ui.TextInput(
+        label="Nombre de usuario",
+        placeholder="Tu nombre de usuario para el servidor",
+        required=True,
+        max_length=50,
+    )
+    password = discord.ui.TextInput(
+        label="Contraseña",
+        placeholder="Tu contraseña para el servidor",
+        required=True,
+        max_length=50,
+    )
+
+    def __init__(self, whitelist_role_ids, config):
+        super().__init__()
+        self.whitelist_role_ids = whitelist_role_ids
+        self.config = config
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        # Verify whitelist roles
+        user_role_ids = [r.id for r in interaction.user.roles]
+        if not any(rid in user_role_ids for rid in self.whitelist_role_ids):
+            await interaction.followup.send(
+                "No tienes permisos para crear un usuario. "
+                "Espera a que un admin te autorice.",
+                ephemeral=True,
+            )
+            return
+
+        # Check if user already has a PZ account
+        guild_id = interaction.guild.id
+        discord_user_id = interaction.user.id
+        existing = await get_pz_user(guild_id, discord_user_id)
+        if existing:
+            await interaction.followup.send(
+                f"Ya tienes una cuenta creada: **{existing['pz_username']}**",
+                ephemeral=True,
+            )
+            return
+
+        # Execute RCON adduser
+        pz_username = self.username.value.strip()
+        pz_password = self.password.value.strip()
+        response = await rcon_interaction_command(
+            interaction, f"adduser {pz_username} {pz_password}"
+        )
+        if response is None:
+            return
+
+        if "exists" in response:
+            await interaction.followup.send(
+                "El usuario ya existe en el servidor, prueba otro nombre.",
+                ephemeral=True,
+            )
+            return
+
+        if "created" in response:
+            # Register in DB
+            await add_pz_user(guild_id, discord_user_id, pz_username)
+
+            # Public message in channel
+            await interaction.channel.send(
+                f"**{interaction.user.display_name}** ha creado el usuario **{pz_username}**"
+            )
+
+            # Ephemeral response with credentials
+            server_address = self.config.get('server_address') or 'No configurada'
+            await interaction.followup.send(
+                f"Usuario creado correctamente.\n"
+                f"**Usuario:** {pz_username}\n"
+                f"**Contraseña:** {pz_password}\n"
+                f"**Dirección del servidor:** {server_address}",
+                ephemeral=True,
+            )
+            return
+
+        # Unexpected response
+        await interaction.followup.send(
+            f"Respuesta inesperada del servidor: {response}",
+            ephemeral=True,
+        )
+
+
+class RequestAccessView(discord.ui.View):
+    def __init__(self, whitelist_role_ids, config):
+        super().__init__(timeout=None)
+        self.whitelist_role_ids = whitelist_role_ids
+        self.config = config
+
+    @discord.ui.button(label="Crear usuario", style=discord.ButtonStyle.primary)
+    async def create_user_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        modal = RequestAccessModal(self.whitelist_role_ids, self.config)
+        await interaction.response.send_modal(modal)
 
 
 class UserCommands(commands.Cog):
@@ -52,42 +149,17 @@ class UserCommands(commands.Cog):
 
     @commands.command(pass_context=True)
     async def pzrequestaccess(self, ctx):
-        """Request access to the PZ server. A password will be DMd to you."""
+        """Request access to the PZ server via a form."""
         config = await require_config(ctx)
         if config is None:
             return
         whitelist_roles = config.get('whitelist_roles') or ''
         role_ids = [int(rid) for rid in whitelist_roles.split(',') if rid.strip()]
-        is_present = [r for r in ctx.author.roles if r.id in role_ids]
-        if is_present:
-            access_split = ctx.message.content.split()
-            try:
-                user = access_split[1]
-            except IndexError:
-                await ctx.send("Invalid command. Try !pzrequestaccess USER")
-                return
-            password = ''.join(random.SystemRandom().choice(
-                string.ascii_uppercase + string.digits + string.ascii_lowercase
-            ) for _ in range(8))
-            c_run = await rcon_command(ctx, [f"adduser {user} {password}"])
-            response = f"{c_run}"
-            if "exists" in response:
-                await ctx.message.author.send("Unable to create user, try another name")
-                return
-            if "created" in response:
-                server_address = config.get('server_address') or 'Not configured'
-                await ctx.message.author.send(
-                    f"Your request was accepted.\n"
-                    f"Username: {user}\n"
-                    f"Password: {password}\n"
-                    f"Address: {server_address}"
-                )
-                return
-        else:
-            await ctx.message.author.send(
-                "You have not been given access to the server yet\n"
-                "Please wait for an admin to authorize you"
-            )
+        view = RequestAccessView(role_ids, config)
+        await ctx.send(
+            "Pulsa el botón para crear tu usuario de Project Zomboid:",
+            view=view,
+        )
 
 
 async def setup(bot):

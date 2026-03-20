@@ -28,6 +28,38 @@ async def rcon_command(ctx, command):
         return response
     except Exception as e:
         print(e)
+        await ctx.send(f"Could not connect to the game server: {e}")
+
+async def rcon_interaction_command(interaction, command):
+    config = await get_guild_config(interaction.guild.id)
+    if config is None:
+        await interaction.followup.send(
+            "This server hasn't been configured yet. An admin needs to run `!pzsetup`.",
+            ephemeral=True
+        )
+        return None
+    if not config.get('rcon_pass'):
+        await interaction.followup.send(
+            "RCON is not configured yet. An admin needs to configure it via `!pzsetup`.",
+            ephemeral=True
+        )
+        return None
+    try:
+        response = await rcon(
+            command,
+            host=config['rcon_host'],
+            port=int(config['rcon_port']),
+            passwd=config['rcon_pass']
+        )
+        return response
+    except Exception as e:
+        print(e)
+        await interaction.followup.send(
+            f"Could not connect to the game server: {e}",
+            ephemeral=True
+        )
+        return None
+
 
 async def IsChannelAllowed(ctx):
     if ctx.guild is None:
