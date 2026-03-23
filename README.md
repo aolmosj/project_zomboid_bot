@@ -1,152 +1,75 @@
 # Project Zomboid Discord Bot
-Discord bot for managing your PZ server and enabling player interactions
+Discord bot for managing your Project Zomboid server with multi-guild support and interactive configuration.
 
+## Features
 
-# Features
-#### Bot status displays the server status. Either offline, or player count ingame:
-Bot updates it's status with either the current count of players ingame  
-or 'Offline' if the server is currently down  
+- **Multi-guild support** — each Discord server stores its own configuration (RCON, roles, channels) in a local SQLite database.
+- **Interactive setup** — `!pzsetup` launches a panel with buttons and dropdown selectors to configure the bot without editing files.
+- **Role-based commands** — admin, moderator and user commands are gated by configurable Discord roles.
+- **User self-service** — players with the correct role can request PZ server access via `!pzrequestaccess`. The bot creates their account and DMs them the credentials.
+- **RCON integration** — commands are sent to the PZ server using the Source RCON protocol via the `rcon` Python library (no external binary needed).
 
-Join and leave announcements  
+## Requirements
 
-#### Role based commands
-Limit administrative server commands to users with specific discord roles  
- 
+- Python 3.8+
+- A Project Zomboid dedicated server with RCON enabled
 
-Moderators can do everything except elevate to admin
-
-Give players insight into their time on the server, like death counts (more to come here):  
-
-
-
-#### User Self Service
-Players with the correct role can request access to the server whitelist via a command  
-The bot will DM them with their new password and connection information to the server  
+Install dependencies:
 
 ```
-!pzrequestaccess someuser  
+pip install -r requirements.txt
 ```
 
-#### Player deaths and time on server  
-Generate a live report of active playtime by users on your server. Updates live for actively connected users as well.  
-```
-!pzplaytime
-User1 has played for 1d, 7h, 24m, 58s
-User2 has played for 1d, 1h, 46m, 15s
-Survivor1 has played for 17h, 13m, 40s
-Noob1 has played for 10h, 0m, 40s
-Survivor2 has played for 3h, 43m, 41s
+Dependencies: `discord.py`, `python-dotenv`, `rcon`, `aiosqlite`, `file-read-backwards`, `watchgod`
 
-```
+## Setup
 
-### This must be locally hosted on your PZ server due to the interactions it requires to get specific information
-Due to how this bot interacts with the server for specific information (rcon, log files, active processes) it must be running on the server that runs project zomboid
+1. Create a `.env` file from the template:
+   ```
+   cp .env.sample .env
+   ```
+2. Add your Discord bot token to `.env`:
+   ```
+   DISCORD_TOKEN=YourTokenHere
+   ```
+3. Start the bot:
+   ```
+   python pzbot.py
+   ```
+4. In your Discord server, run `!pzsetup` to open the interactive configuration panel where you can set RCON connection, roles and channels.
 
-I will not go into how to setup a bot or a service for a python script here, there are tons of guides already, but have included basic unit files for this bot
+## Commands
 
+### Configuration
+| Command | Description |
+|---------|-------------|
+| `!pzsetup` | Open the interactive bot configuration panel |
 
-pzbot.py - Handles all commands and server communication. It also will handle the bot status changing and updating. 
+### Admin Commands
+| Command | Description |
+|---------|-------------|
+| `!pzsetaccess` | Set the access level of a user |
+| `!pzusers` | Show all registered PZ users in the server |
 
+### Moderator Commands
+| Command | Description |
+|---------|-------------|
+| `!pzsteamban` | Steam ban a user |
+| `!pzsteamunban` | Steam unban a user |
+| `!pzkick` | Kick a user |
+| `!pzwhitelist` | Whitelist a user |
+| `!pzunwhitelist` | Remove a whitelisted user |
+| `!pzwhitelistall` | Whitelist all active users |
+| `!pzadduser` | Add a user with password |
+| `!pzadditem` | Add an item to a user's inventory |
+| `!pzteleport` | Teleport a user to another user |
+| `!pzservermsg` | Broadcast a server message |
+| `!pzsave` | Save the current world |
 
-pzwatcher.py - Will watch logs and report ingame activities to specified channels
-
-
-You can use one or the other, or both.
-
-# Requirements and Setup
-Make sure you have python3-pip
-
-This requires the rcon executable in the same directory as the script  
-Yes, I tried using python rcon, and python-valve but it did not work and consistently timed out talking to the pz server
-
-https://leviwheatcroft.github.io/selfhosted-awesome-unlist/rcon-cli.html
-
-```pip install rcon python-dotenv discord.py psutil watchgod file_read_backwards```
-
-Make sure your PZ rcon server is listening on 27015
-
-You must have a .`env` file present in the root directory of the project. Copy the sample environment variable file template provided in the project root directory: `cp .env.sample .env`
-  
-All of these should be filled out. To get channel id's, enable dev mode on your discord app, and right click a channel and click 'copy id'   
-```
-RCON_PASS=SuperPassword
-RCON_SERVER=127.0.0.1
-RCON_PORT=27015
-DISCORD_GUILD="My Discord Server"
-DISCORD_TOKEN=CoolTokenHere
-ADMIN_ROLES="Admin, Moderator"
-LOG_PATH="/home/steamd/Zomboid/Logs"
-NOTIFICATION_CHANNEL="123123211"
-INGAME_CHANNEL="123123123123213"
-PROCESS_NAME="ProjectZomboid64"
-WHITELIST_ROLES="Survivor"
-SERVER_ADDRESS="69.164.202.83:16261"
-```
-LOG_PATH should point to where the PZ server logs root is. This is how the player deaths are reported.
-
-ADMIN_ROLES are the discord server roles that will allow those users to run 'AdminCommands'
-
-INGAME_CHANNEL is the channel that project zomboid is attached to, and it gets excluded from command runs
-
-NOTIFICATION_CHANNEL will send player death and join/leave notification
-
-WHITELIST_ROLES="Survivor" - The role name of users that can request accounts on the pz server
-
-SERVER_ADDRESS="1.2.3.4:16261"
-
-Start the bot script
-
-Default settings are setup to work with this installer: https://github.com/rfalias/project_zomboid_installer
-# Usage
-```
-AdminCommands:
-  pzrestartserver Restart the PZ server
-  pzsetaccess     Set the access level of a specific user.
-ModeratorCommands:
-  pzadditem       Adds an item to the specified user's inventory
-  pzgetsteamid    Lookup steamid of user
-  pzkick          Kick a user
-  pzsave          Save the current world
-  pzservermsg     Broadcast a server message
-  pzsteamban      Steam ban a user
-  pzsteamunban    Steam unban a user
-  pzteleport      Teleport a user to another user
-  pzunwhitelist   Remove a whitelisted user
-  pzwhitelist     Whitelist a user
-  pzwhitelistall  Whitelist all active users
-UserCommands:
-  pzdeathcount    Get the total death count of a player
-  pzdeaths        Get the total death count of all players
-  pzgetoption     Get the value of a server option
-  pzlistmods      List currently installed mods
-  pzplayers       Show current active players on the server
-  pzplaytime      Get the total playtime of all players
-  pzrequestaccess Request access to the PZ server. A password will be DMd to ...
-  whatareyou      What is the bot
-​No Category:
-  help            Shows this message
-
-Type !help command for more info on a command.
-You can also type !help category for more info on a category.
-```
-
-# Examples
-Admin commands can only be run by users in discord with the "Admin" role. 
-
-## Ban a user
-!pzsteamban SteamIDOfUser
-
-## Make a user an admin
-!pzsetaccess SomeUser admin
-
-## Get a server option
-Does a fuzzy lookup for a specific server option
-
-!pzgetoption zombie
-```
-Server options:
-ZombieUpdateDelta=0.5
-ZombieUpdateMaxHighPriority=50
-ZombieUpdateRadiusHighPriority=10.0
-ZombieUpdateRadiusLowPriority=45.0
-```
+### User Commands
+| Command | Description |
+|---------|-------------|
+| `!pzplayers` | Show current active players |
+| `!pzgetoption` | Get the value of a server option (fuzzy lookup) |
+| `!pzrequestaccess` | Request access to the PZ server |
+| `!whatareyou` | Bot info |

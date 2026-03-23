@@ -1,2 +1,5 @@
 .env
+.env.old*
 __pycache__/
+guild_config.db
+.pzbot-venv/

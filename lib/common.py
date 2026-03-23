@@ -1,40 +1,101 @@
 from rcon.source import rcon
-import os
+from lib.guild_config import get_guild_config
 
-RCONPASS = os.getenv('RCON_PASS')
-RCONSERVER = os.getenv('RCON_SERVER')
-RCONPORT = os.getenv('RCON_PORT')
-IGNORE_CHANNELS = os.getenv('IGNORE_CHANNELS')
-ADMIN_ROLES = os.getenv('ADMIN_ROLES')
-MODERATOR_ROLES = os.getenv('MODERATOR_ROLES')
-ADMIN_ROLES = ADMIN_ROLES.split(',')
 block_notified = list()
 
+async def require_config(ctx):
+    if ctx.guild is None:
+        return None
+    config = await get_guild_config(ctx.guild.id)
+    if config is None:
+        await ctx.send("This server hasn't been configured yet. An admin needs to run `!pzsetup`.")
+    return config
+
 async def rcon_command(ctx, command):
+    config = await require_config(ctx)
+    if config is None:
+        return None
+    if not config.get('rcon_pass'):
+        await ctx.send("RCON is not configured yet. An admin needs to configure it via `!pzsetup`.")
+        return None
     try:
         response = await rcon(
             " ".join(command),
-            host=RCONSERVER, port=int(RCONPORT), passwd=RCONPASS
+            host=config['rcon_host'],
+            port=int(config['rcon_port']),
+            passwd=config['rcon_pass']
         )
         return response
     except Exception as e:
         print(e)
+        await ctx.send(f"Could not connect to the game server: {e}")
+
+async def rcon_interaction_command(interaction, command):
+    config = await get_guild_config(interaction.guild.id)
+    if config is None:
+        await interaction.followup.send(
+            "This server hasn't been configured yet. An admin needs to run `!pzsetup`.",
+            ephemeral=True
+        )
+        return None
+    if not config.get('rcon_pass'):
+        await interaction.followup.send(
+            "RCON is not configured yet. An admin needs to configure it via `!pzsetup`.",
+            ephemeral=True
+        )
+        return None
+    try:
+        response = await rcon(
+            command,
+            host=config['rcon_host'],
+            port=int(config['rcon_port']),
+            passwd=config['rcon_pass']
+        )
+        return response
+    except Exception as e:
+        print(e)
+        await interaction.followup.send(
+            f"Could not connect to the game server: {e}",
+            ephemeral=True
+        )
+        return None
+
 
 async def IsChannelAllowed(ctx):
-    channel_name = str(ctx.message.channel)
-    is_present = [i for i in IGNORE_CHANNELS if i.lower() == channel_name.lower()]
-    if channel_name in IGNORE_CHANNELS:
-        if channel_name not in block_notified:
+    if ctx.guild is None:
+        await ctx.send("Commands can only be used in a server, not in DMs.")
+        return False
+    config = await get_guild_config(ctx.guild.id)
+    if config is None:
+        return True
+    ignore_channels = config.get('ignore_channels') or ''
+    if not ignore_channels:
+        return True
+    ignore_list = [int(cid) for cid in ignore_channels.split(',') if cid.strip()]
+    channel_id = ctx.message.channel.id
+    if channel_id in ignore_list:
+        if channel_id not in block_notified:
             await ctx.send("Not allowed to run commands in this channel")
-            block_notified.append(channel_name)
-        raise Exception("Not allowed to operate in channel")
+            block_notified.append(channel_id)
+        return False
+    return True
 
 async def IsAdmin(ctx):
-    is_present = [i for i in ctx.author.roles if i.name in ADMIN_ROLES]
+    config = await get_guild_config(ctx.guild.id)
+    if config is None:
+        return False
+    admin_roles = config.get('admin_roles') or ''
+    role_ids = [int(rid) for rid in admin_roles.split(',') if rid.strip()]
+    is_present = [r for r in ctx.author.roles if r.id in role_ids]
     return is_present
 
 async def IsMod(ctx):
-    is_present = [i for i in ctx.author.roles if i.name in MODERATOR_ROLES]
+    config = await get_guild_config(ctx.guild.id)
+    if config is None:
+        return False
+    mod_roles = config.get('moderator_roles') or ''
+    role_ids = [int(rid) for rid in mod_roles.split(',') if rid.strip()]
+    is_present = [r for r in ctx.author.roles if r.id in role_ids]
     return is_present
 
 async def pretty_time_delta(seconds):

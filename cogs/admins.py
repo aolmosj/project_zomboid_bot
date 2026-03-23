@@ -1,62 +1,31 @@
-import string
-import os
-import socket
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import discord
-from discord.ext import commands, tasks
-from dotenv import load_dotenv
-from subprocess import Popen
-import glob
-import subprocess
-import psutil
-import schedule
-import random
-from subprocess import check_output, STDOUT
-import time
-from datetime import datetime
-from lib.common import *
-
-
-load_dotenv()
-WHITELIST_ROLES = os.getenv('WHITELIST_ROLES')
-WHITELIST_ROLES = WHITELIST_ROLES.split(',')
-IGNORE_CHANNELS = os.getenv('IGNORE_CHANNELS')
-SERVER_ADDRESS = os.getenv('SERVER_ADDRESS')
-NOTIFICATION_CHANNEL = os.getenv('NOTIFICATION_CHANNEL')
+from discord.ext import commands
+from lib.common import rcon_command, IsChannelAllowed, IsAdmin
+from lib.guild_config import get_all_pz_users
 
 access_levels = ['admin', 'none', 'moderator']
 
-async def chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
 
 class AdminCommands(commands.Cog):
     """Admin Server Commands"""
     def __init__(self, bot):
-        self.bot = bot    
+        self.bot = bot
 
     @commands.command()
-
     async def pzsetaccess(self, ctx):
         """Set the access level of a specific user."""
-        await IsChannelAllowed(ctx)
+        if not await IsChannelAllowed(ctx):
+            return
         if await IsAdmin(ctx):
-            print(ctx.message.content)
             access_split = ctx.message.content.split()
-            user = ""
-            level = ""
             try:
                 user = access_split[1]
                 access_level = access_split[2]
-            except IndexError as ie:
-                response = f"Invalid command. Try !pzsetaccess USER ACCESSLEVEL"
-                await ctx.send(response)
+            except IndexError:
+                await ctx.send("Invalid command. Try !pzsetaccess USER ACCESSLEVEL")
                 return
             if access_level not in access_levels:
-                response = f"Invalid access level {level}. Muse be one of {access_levels}"
-                await ctx.send(response)
+                await ctx.send(f"Invalid access level {access_level}. Must be one of {access_levels}")
                 return
             c_run = await rcon_command(ctx, [f"setaccesslevel", f"{user}", f"{access_level}"])
             response = f"{c_run}"
@@ -64,6 +33,42 @@ class AdminCommands(commands.Cog):
             response = f"{ctx.author}, you don't have admin rights."
         await ctx.send(response)
 
+
+    @commands.command()
+    async def pzusers(self, ctx):
+        """Muestra todos los usuarios PZ registrados en el servidor."""
+        if not await IsChannelAllowed(ctx):
+            return
+        if not await IsAdmin(ctx):
+            await ctx.send(f"{ctx.author}, you don't have admin rights.")
+            return
+
+        users = await get_all_pz_users(ctx.guild.id)
+
+        if not users:
+            embed = discord.Embed(
+                title="Usuarios de Project Zomboid",
+                description="No hay usuarios registrados",
+                color=discord.Color.green()
+            )
+            await ctx.send(embed=embed)
+            return
+
+        # Paginar en embeds de 25 fields cada uno
+        for i in range(0, len(users), 25):
+            chunk = users[i:i + 25]
+            embed = discord.Embed(
+                title="Usuarios de Project Zomboid",
+                color=discord.Color.green()
+            )
+            for user in chunk:
+                embed.add_field(
+                    name=user['pz_username'],
+                    value=f"<@{user['discord_user_id']}> — {user['created_at']}",
+                    inline=False
+                )
+            await ctx.send(embed=embed)
+
+
 async def setup(bot):
-    # finally, adding the cog to the bot
-    await bot.add_cog(AdminCommands(bot=bot))        
+    await bot.add_cog(AdminCommands(bot=bot))
