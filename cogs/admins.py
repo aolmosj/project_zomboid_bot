@@ -1,9 +1,9 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
-from lib.common import rcon_command, IsChannelAllowed, IsAdmin
+from lib.common import rcon_interaction_command, is_channel_allowed, is_admin
 from lib.guild_config import get_all_pz_users
-
-access_levels = ['admin', 'none', 'moderator']
+from lib.i18n import t
 
 
 class AdminCommands(commands.Cog):
@@ -11,54 +11,53 @@ class AdminCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
-    async def pzsetaccess(self, ctx):
-        """Set the access level of a specific user."""
-        if not await IsChannelAllowed(ctx):
+    @app_commands.command(name="pzsetaccess", description="Set the access level of a user")
+    @app_commands.describe(user="Target user", access_level="Access level to set")
+    @app_commands.choices(access_level=[
+        app_commands.Choice(name="Admin", value="admin"),
+        app_commands.Choice(name="Moderator", value="moderator"),
+        app_commands.Choice(name="None", value="none"),
+    ])
+    async def pzsetaccess(self, interaction: discord.Interaction, user: str, access_level: app_commands.Choice[str]):
+        if not await is_channel_allowed(interaction):
             return
-        if await IsAdmin(ctx):
-            access_split = ctx.message.content.split()
-            try:
-                user = access_split[1]
-                access_level = access_split[2]
-            except IndexError:
-                await ctx.send("Invalid command. Try !pzsetaccess USER ACCESSLEVEL")
-                return
-            if access_level not in access_levels:
-                await ctx.send(f"Invalid access level {access_level}. Must be one of {access_levels}")
-                return
-            c_run = await rcon_command(ctx, [f"setaccesslevel", f"{user}", f"{access_level}"])
-            response = f"{c_run}"
-        else:
-            response = f"{ctx.author}, you don't have admin rights."
-        await ctx.send(response)
-
-
-    @commands.command()
-    async def pzusers(self, ctx):
-        """Muestra todos los usuarios PZ registrados en el servidor."""
-        if not await IsChannelAllowed(ctx):
+        if not await is_admin(interaction):
+            await interaction.response.send_message(
+                t(interaction.locale, "no_permission"), ephemeral=True
+            )
             return
-        if not await IsAdmin(ctx):
-            await ctx.send(f"{ctx.author}, you don't have admin rights.")
-            return
+        await interaction.response.defer()
+        c_run = await rcon_interaction_command(interaction, f"setaccesslevel {user} {access_level.value}")
+        if c_run is not None:
+            await interaction.followup.send(c_run)
 
-        users = await get_all_pz_users(ctx.guild.id)
+    @app_commands.command(name="pzusers", description="List all registered PZ users")
+    async def pzusers(self, interaction: discord.Interaction):
+        if not await is_channel_allowed(interaction):
+            return
+        if not await is_admin(interaction):
+            await interaction.response.send_message(
+                t(interaction.locale, "no_permission"), ephemeral=True
+            )
+            return
+        await interaction.response.defer()
+
+        users = await get_all_pz_users(interaction.guild.id)
+        locale = interaction.locale
 
         if not users:
             embed = discord.Embed(
-                title="Usuarios de Project Zomboid",
-                description="No hay usuarios registrados",
+                title=t(locale, "pz_users_title"),
+                description=t(locale, "no_registered_users"),
                 color=discord.Color.green()
             )
-            await ctx.send(embed=embed)
+            await interaction.followup.send(embed=embed)
             return
 
-        # Paginar en embeds de 25 fields cada uno
         for i in range(0, len(users), 25):
             chunk = users[i:i + 25]
             embed = discord.Embed(
-                title="Usuarios de Project Zomboid",
+                title=t(locale, "pz_users_title"),
                 color=discord.Color.green()
             )
             for user in chunk:
@@ -67,7 +66,7 @@ class AdminCommands(commands.Cog):
                     value=f"<@{user['discord_user_id']}> — {user['created_at']}",
                     inline=False
                 )
-            await ctx.send(embed=embed)
+            await interaction.followup.send(embed=embed)
 
 
 async def setup(bot):
