@@ -28,7 +28,7 @@ class PZBot(commands.Bot):
             command_prefix="!",
             activity=discord.Activity(type=discord.ActivityType.custom,
             name="custom",
-            state="Type !help"),
+            state="Project Zomboid"),
             intents=discord.Intents.all()
         )
 
@@ -43,6 +43,8 @@ class PZBot(commands.Bot):
         ]
         for extension in extensions:
             await self.load_extension(extension)
+
+        await self.tree.sync()
 
 print("Starting bot")
 PZBot().run(TOKEN)

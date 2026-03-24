@@ -1,14 +1,22 @@
 import discord
+from discord import app_commands, ui
 from discord.ext import commands
-from discord import ui
 from lib.guild_config import get_guild_config, set_guild_config, delete_guild_config, CONFIG_KEYS
+from lib.i18n import t
 
 
-class RconModal(ui.Modal, title="RCON Configuration"):
-    rcon_host = ui.TextInput(label="Host", placeholder="127.0.0.1", default="127.0.0.1")
-    rcon_port = ui.TextInput(label="Port", placeholder="27015", default="27015")
-    rcon_pass = ui.TextInput(label="Password", placeholder="Your RCON password")
-    server_address = ui.TextInput(label="Server address (shown to players)", placeholder="1.2.3.4:16261", required=False)
+class RconModal(ui.Modal):
+    def __init__(self, locale):
+        super().__init__(title="RCON Configuration")
+        self.locale = locale
+        self.rcon_host = ui.TextInput(label="Host", placeholder="127.0.0.1", default="127.0.0.1")
+        self.rcon_port = ui.TextInput(label="Port", placeholder="27015", default="27015")
+        self.rcon_pass = ui.TextInput(label="Password", placeholder="Your RCON password")
+        self.server_address = ui.TextInput(label="Server address (shown to players)", placeholder="1.2.3.4:16261", required=False)
+        self.add_item(self.rcon_host)
+        self.add_item(self.rcon_port)
+        self.add_item(self.rcon_pass)
+        self.add_item(self.server_address)
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
@@ -127,12 +135,19 @@ def _build_channel_defaults(guild, channel_ids):
     return defaults
 
 
-
-
 class SetupView(ui.View):
-    def __init__(self, author_id: int):
+    def __init__(self, author_id: int, locale):
         super().__init__(timeout=120)
         self.author_id = author_id
+        self.locale = locale
+        self.message = None
+
+    async def on_timeout(self):
+        if self.message:
+            try:
+                await self.message.delete()
+            except discord.NotFound:
+                pass
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author_id:
@@ -149,7 +164,7 @@ class SetupView(ui.View):
     @ui.button(label="RCON", style=discord.ButtonStyle.primary, emoji="\U0001f50c")
     async def rcon_button(self, interaction: discord.Interaction, button: ui.Button):
         config = await get_guild_config(interaction.guild.id)
-        modal = RconModal()
+        modal = RconModal(locale=interaction.locale)
         if config:
             modal.rcon_host.default = config.get('rcon_host') or '127.0.0.1'
             modal.rcon_port.default = str(config.get('rcon_port') or '27015')
@@ -164,19 +179,19 @@ class SetupView(ui.View):
 
         admin_view = _make_role_view(uid, guild, config, 'admin_roles', 'Admin roles', "Select admin roles...")
         await interaction.response.send_message(
-            "**Admin roles** — Full access: can configure the bot, manage the server, and use all commands",
+            "**Admin roles** \u2014 Full access: can configure the bot, manage the server, and use all commands",
             view=admin_view, ephemeral=True
         )
 
         mod_view = _make_role_view(uid, guild, config, 'moderator_roles', 'Moderator roles', "Select moderator roles...")
         await interaction.followup.send(
-            "**Moderator roles** — Can kick/ban players, manage whitelist, and use moderation commands",
+            "**Moderator roles** \u2014 Can kick/ban players, manage whitelist, and use moderation commands",
             view=mod_view, ephemeral=True
         )
 
         wl_view = _make_role_view(uid, guild, config, 'whitelist_roles', 'Whitelist roles', "Select whitelist roles...")
         await interaction.followup.send(
-            "**Whitelist roles** — Users with these roles are automatically whitelisted on the server",
+            "**Whitelist roles** \u2014 Users with these roles are automatically whitelisted on the server",
             view=wl_view, ephemeral=True
         )
 
@@ -189,14 +204,14 @@ class SetupView(ui.View):
         ignore_view = _make_channel_view(uid, guild, config, 'ignore_channels', 'Ignore channels',
                                          "Select channels to ignore...")
         await interaction.response.send_message(
-            "**Ignore channels** — Bot commands will be disabled in these channels",
+            "**Ignore channels** \u2014 Bot commands will be disabled in these channels",
             view=ignore_view, ephemeral=True
         )
 
         notif_view = _make_channel_view(uid, guild, config, 'notification_channel', 'Notification channel',
                                         "Select notification channel...", max_values=1)
         await interaction.followup.send(
-            "**Notification channel** — Server events (player joins, restarts, etc.) will be posted here",
+            "**Notification channel** \u2014 Server events (player joins, restarts, etc.) will be posted here",
             view=notif_view, ephemeral=True
         )
 
@@ -247,17 +262,23 @@ class ConfigCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
-    async def pzsetup(self, ctx):
-        """Open the bot configuration panel"""
-        if ctx.guild is None:
-            await ctx.send("This command can only be used in a server.")
+    @app_commands.command(name="pzsetup", description="Open the bot configuration panel")
+    async def pzsetup(self, interaction: discord.Interaction):
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                t(interaction.locale, "dm_not_allowed"), ephemeral=True
+            )
             return
-        if not ctx.author.guild_permissions.administrator and ctx.guild.owner_id != ctx.author.id:
-            await ctx.send("You need administrator permissions to use this command.")
+        if not interaction.user.guild_permissions.administrator and interaction.guild.owner_id != interaction.user.id:
+            await interaction.response.send_message(
+                t(interaction.locale, "need_admin"), ephemeral=True
+            )
             return
-        view = SetupView(author_id=ctx.author.id)
-        await ctx.send("**PZ Bot Configuration**\nSelect what you want to configure:", view=view)
+        view = SetupView(author_id=interaction.user.id, locale=interaction.locale)
+        await interaction.response.send_message(
+            t(interaction.locale, "setup_title"), view=view
+        )
+        view.message = await interaction.original_response()
 
 
 async def setup(bot):
