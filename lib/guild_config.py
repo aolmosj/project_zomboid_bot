@@ -8,8 +8,7 @@ _cache = {}
 CONFIG_KEYS = [
     'rcon_host', 'rcon_port', 'rcon_pass',
     'server_address', 'admin_roles', 'moderator_roles',
-    'whitelist_roles', 'ignore_channels', 'notification_channel',
-    'log_path'
+    'whitelist_roles', 'ignore_channels', 'notification_channel'
 ]
 
 async def init_db():
@@ -25,8 +24,7 @@ async def init_db():
                 moderator_roles TEXT,
                 whitelist_roles TEXT,
                 ignore_channels TEXT,
-                notification_channel TEXT,
-                log_path        TEXT
+                notification_channel TEXT
             )
         ''')
         await db.execute('''
