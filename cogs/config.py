@@ -140,6 +140,14 @@ class SetupView(ui.View):
         super().__init__(timeout=120)
         self.author_id = author_id
         self.locale = locale
+        self.message = None
+
+    async def on_timeout(self):
+        if self.message:
+            try:
+                await self.message.delete()
+            except discord.NotFound:
+                pass
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author_id:
@@ -270,6 +278,7 @@ class ConfigCommands(commands.Cog):
         await interaction.response.send_message(
             t(interaction.locale, "setup_title"), view=view
         )
+        view.message = await interaction.original_response()
 
 
 async def setup(bot):
