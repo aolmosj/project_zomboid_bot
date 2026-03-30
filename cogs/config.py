@@ -174,11 +174,27 @@ class SetupView(ui.View):
         self.author_id = author_id
         self.locale = locale
         self.message = None
+        self._child_interactions = []
+        self._child_followups = []
         self.channels_button.label = t(locale, "btn_channels")
         self.show_button.label = t(locale, "btn_show_config")
         self.reset_button.label = t(locale, "btn_reset")
 
+    def _track(self, interaction, followups=None):
+        self._child_interactions.append(interaction)
+        self._child_followups.extend(followups or [])
+
     async def on_timeout(self):
+        for msg in self._child_followups:
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
+        for inter in self._child_interactions:
+            try:
+                await inter.delete_original_response()
+            except discord.NotFound:
+                pass
         if self.message:
             try:
                 await self.message.delete()
@@ -222,15 +238,15 @@ class SetupView(ui.View):
         )
 
         mod_view = _make_role_view(uid, guild, config, 'moderator_roles', 'mod_roles', locale)
-        await interaction.followup.send(
-            t(locale, "mod_roles_desc"), view=mod_view, ephemeral=True
+        mod_msg = await interaction.followup.send(
+            t(locale, "mod_roles_desc"), view=mod_view, ephemeral=True, wait=True
         )
 
         wl_view = _make_role_view(uid, guild, config, 'whitelist_roles', 'wl_roles', locale)
-        await interaction.followup.send(
-            t(locale, "wl_roles_desc"), view=wl_view, ephemeral=True
+        wl_msg = await interaction.followup.send(
+            t(locale, "wl_roles_desc"), view=wl_view, ephemeral=True, wait=True
         )
-        asyncio.create_task(_delete_after(interaction))
+        self._track(interaction, followups=[mod_msg, wl_msg])
 
     @ui.button(label="Channels", style=discord.ButtonStyle.secondary, emoji="\U0001f4e2")
     async def channels_button(self, interaction: discord.Interaction, button: ui.Button):
@@ -246,10 +262,10 @@ class SetupView(ui.View):
 
         notif_view = _make_channel_view(uid, guild, config, 'notification_channel', 'notif_channel', locale,
                                         max_values=1)
-        await interaction.followup.send(
-            t(locale, "notif_channel_desc"), view=notif_view, ephemeral=True
+        notif_msg = await interaction.followup.send(
+            t(locale, "notif_channel_desc"), view=notif_view, ephemeral=True, wait=True
         )
-        asyncio.create_task(_delete_after(interaction))
+        self._track(interaction, followups=[notif_msg])
 
     @ui.button(label="Show config", style=discord.ButtonStyle.success, emoji="\U0001f4cb")
     async def show_button(self, interaction: discord.Interaction, button: ui.Button):
@@ -283,7 +299,7 @@ class SetupView(ui.View):
                 val = t(locale, "not_set")
             lines.append(f"**{key}**: `{val}`")
         await interaction.response.send_message('\n'.join(lines), ephemeral=True)
-        asyncio.create_task(_delete_after(interaction))
+        self._track(interaction)
 
     @ui.button(label="Reset", style=discord.ButtonStyle.danger, emoji="\U0001f5d1")
     async def reset_button(self, interaction: discord.Interaction, button: ui.Button):
@@ -294,7 +310,7 @@ class SetupView(ui.View):
             return
         await delete_guild_config(interaction.guild.id)
         await interaction.response.send_message(t(locale, "config_reset"), ephemeral=True)
-        asyncio.create_task(_delete_after(interaction))
+        self._track(interaction)
 
 
 class ConfigCommands(commands.Cog):
