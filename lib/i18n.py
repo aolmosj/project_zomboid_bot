@@ -118,6 +118,18 @@ MESSAGES = {
         "en": "You need administrator permissions to use this command.",
         "es": "Necesitas permisos de administrador para usar este comando.",
     },
+    "btn_channels": {
+        "en": "Channels",
+        "es": "Canales",
+    },
+    "btn_show_config": {
+        "en": "Show config",
+        "es": "Mostrar config",
+    },
+    "btn_reset": {
+        "en": "Reset",
+        "es": "Restablecer",
+    },
     "only_invoker": {
         "en": "Only the person who ran the command can use these buttons.",
         "es": "Solo la persona que ejecutó el comando puede usar estos botones.",

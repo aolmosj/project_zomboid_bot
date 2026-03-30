@@ -159,6 +159,9 @@ class SetupView(ui.View):
         self.author_id = author_id
         self.locale = locale
         self.message = None
+        self.channels_button.label = t(locale, "btn_channels")
+        self.show_button.label = t(locale, "btn_show_config")
+        self.reset_button.label = t(locale, "btn_reset")
 
     async def on_timeout(self):
         if self.message:
