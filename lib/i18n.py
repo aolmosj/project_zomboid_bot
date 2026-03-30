@@ -118,6 +118,130 @@ MESSAGES = {
         "en": "You need administrator permissions to use this command.",
         "es": "Necesitas permisos de administrador para usar este comando.",
     },
+    "only_invoker": {
+        "en": "Only the person who ran the command can use these buttons.",
+        "es": "Solo la persona que ejecutó el comando puede usar estos botones.",
+    },
+
+    # RCON modal
+    "rcon_modal_title": {
+        "en": "RCON Configuration",
+        "es": "Configuración RCON",
+    },
+    "rcon_password_placeholder": {
+        "en": "Your RCON password",
+        "es": "Tu contraseña RCON",
+    },
+    "rcon_server_address_label": {
+        "en": "Server address (shown to players)",
+        "es": "Dirección del servidor (visible para jugadores)",
+    },
+    "rcon_invalid_port": {
+        "en": "Invalid port number.",
+        "es": "Número de puerto inválido.",
+    },
+    "rcon_configured": {
+        "en": "RCON configured successfully.",
+        "es": "RCON configurado correctamente.",
+    },
+
+    # Roles button
+    "admin_roles_name": {
+        "en": "Admin roles",
+        "es": "Roles de admin",
+    },
+    "admin_roles_placeholder": {
+        "en": "Select admin roles...",
+        "es": "Selecciona roles de admin...",
+    },
+    "admin_roles_desc": {
+        "en": "**Admin roles** \u2014 Full access: can configure the bot, manage the server, and use all commands",
+        "es": "**Roles de admin** \u2014 Acceso total: pueden configurar el bot, gestionar el servidor y usar todos los comandos",
+    },
+    "mod_roles_name": {
+        "en": "Moderator roles",
+        "es": "Roles de moderador",
+    },
+    "mod_roles_placeholder": {
+        "en": "Select moderator roles...",
+        "es": "Selecciona roles de moderador...",
+    },
+    "mod_roles_desc": {
+        "en": "**Moderator roles** \u2014 Can kick/ban players, manage whitelist, and use moderation commands",
+        "es": "**Roles de moderador** \u2014 Pueden expulsar/banear jugadores, gestionar la whitelist y usar comandos de moderación",
+    },
+    "wl_roles_name": {
+        "en": "Whitelist roles",
+        "es": "Roles de whitelist",
+    },
+    "wl_roles_placeholder": {
+        "en": "Select whitelist roles...",
+        "es": "Selecciona roles de whitelist...",
+    },
+    "wl_roles_desc": {
+        "en": "**Whitelist roles** \u2014 Users with these roles are automatically whitelisted on the server",
+        "es": "**Roles de whitelist** \u2014 Los usuarios con estos roles se añaden automáticamente a la whitelist del servidor",
+    },
+
+    # Channels button
+    "ignore_channels_name": {
+        "en": "Ignore channels",
+        "es": "Canales ignorados",
+    },
+    "ignore_channels_placeholder": {
+        "en": "Select channels to ignore...",
+        "es": "Selecciona canales a ignorar...",
+    },
+    "ignore_channels_desc": {
+        "en": "**Ignore channels** \u2014 Bot commands will be disabled in these channels",
+        "es": "**Canales ignorados** \u2014 Los comandos del bot estarán desactivados en estos canales",
+    },
+    "notif_channel_name": {
+        "en": "Notification channel",
+        "es": "Canal de notificaciones",
+    },
+    "notif_channel_placeholder": {
+        "en": "Select notification channel...",
+        "es": "Selecciona canal de notificaciones...",
+    },
+    "notif_channel_desc": {
+        "en": "**Notification channel** \u2014 Server events (player joins, restarts, etc.) will be posted here",
+        "es": "**Canal de notificaciones** \u2014 Los eventos del servidor (conexiones, reinicios, etc.) se publicarán aquí",
+    },
+
+    # Select callbacks
+    "select_set_to": {
+        "en": "{name} set to: {values}",
+        "es": "{name} establecido a: {values}",
+    },
+    "select_cleared": {
+        "en": "{name} cleared.",
+        "es": "{name} limpiado.",
+    },
+
+    # Show config
+    "no_config_found": {
+        "en": "No configuration found yet.",
+        "es": "Aún no hay configuración.",
+    },
+    "config_header": {
+        "en": "Configuration for **{guild}**:\n",
+        "es": "Configuración de **{guild}**:\n",
+    },
+    "not_set": {
+        "en": "Not set",
+        "es": "No configurado",
+    },
+
+    # Reset
+    "no_config_to_reset": {
+        "en": "No configuration to reset.",
+        "es": "No hay configuración que restablecer.",
+    },
+    "config_reset": {
+        "en": "Configuration has been reset.",
+        "es": "La configuración se ha restablecido.",
+    },
 }
 
 
