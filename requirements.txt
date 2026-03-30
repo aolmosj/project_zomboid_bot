@@ -2,5 +2,3 @@ discord.py
 python-dotenv
 rcon
 aiosqlite
-file-read-backwards
-watchgod

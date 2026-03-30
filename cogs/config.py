@@ -1,20 +1,41 @@
+import asyncio
 import discord
+from discord import app_commands, ui
 from discord.ext import commands
-from discord import ui
 from lib.guild_config import get_guild_config, set_guild_config, delete_guild_config, CONFIG_KEYS
+from lib.i18n import t
+
+EPHEMERAL_DELETE_DELAY = 120
 
 
-class RconModal(ui.Modal, title="RCON Configuration"):
-    rcon_host = ui.TextInput(label="Host", placeholder="127.0.0.1", default="127.0.0.1")
-    rcon_port = ui.TextInput(label="Port", placeholder="27015", default="27015")
-    rcon_pass = ui.TextInput(label="Password", placeholder="Your RCON password")
-    server_address = ui.TextInput(label="Server address (shown to players)", placeholder="1.2.3.4:16261", required=False)
+async def _delete_after(interaction, delay=EPHEMERAL_DELETE_DELAY):
+    """Delete the original interaction response after a delay."""
+    await asyncio.sleep(delay)
+    try:
+        await interaction.delete_original_response()
+    except discord.NotFound:
+        pass
+
+
+class RconModal(ui.Modal):
+    def __init__(self, locale):
+        super().__init__(title=t(locale, "rcon_modal_title"))
+        self.locale = locale
+        self.rcon_host = ui.TextInput(label="Host", placeholder="127.0.0.1", default="127.0.0.1")
+        self.rcon_port = ui.TextInput(label="Port", placeholder="27015", default="27015")
+        self.rcon_pass = ui.TextInput(label="Password", placeholder=t(locale, "rcon_password_placeholder"))
+        self.server_address = ui.TextInput(label=t(locale, "rcon_server_address_label"), placeholder="1.2.3.4:16261", required=False)
+        self.add_item(self.rcon_host)
+        self.add_item(self.rcon_port)
+        self.add_item(self.rcon_pass)
+        self.add_item(self.server_address)
 
     async def on_submit(self, interaction: discord.Interaction):
+        locale = interaction.locale
         try:
             port = int(self.rcon_port.value)
         except ValueError:
-            await interaction.response.send_message("Invalid port number.", ephemeral=True)
+            await interaction.response.send_message(t(locale, "rcon_invalid_port"), ephemeral=True)
             return
         kwargs = dict(
             rcon_host=self.rcon_host.value,
@@ -24,7 +45,8 @@ class RconModal(ui.Modal, title="RCON Configuration"):
         if self.server_address.value:
             kwargs['server_address'] = self.server_address.value
         await set_guild_config(interaction.guild.id, **kwargs)
-        await interaction.response.send_message("RCON configured successfully.", ephemeral=True)
+        await interaction.response.send_message(t(locale, "rcon_configured"), ephemeral=True)
+        asyncio.create_task(_delete_after(interaction))
 
 
 def _parse_role_ids(value):
@@ -50,47 +72,65 @@ class ConfigView(ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author_id:
-            await interaction.response.send_message("Only the person who ran the command can use these buttons.", ephemeral=True)
+            await interaction.response.send_message(
+                t(interaction.locale, "only_invoker"), ephemeral=True
+            )
             return False
         return True
 
 
 class ConfigRoleSelect(ui.RoleSelect):
-    def __init__(self, config_key: str, display_name: str, **kwargs):
+    def __init__(self, config_key: str, display_name_key: str, **kwargs):
         super().__init__(**kwargs)
         self.config_key = config_key
-        self.display_name = display_name
+        self.display_name_key = display_name_key
 
     async def callback(self, interaction: discord.Interaction):
+        locale = interaction.locale
+        display_name = t(locale, self.display_name_key)
         role_ids = ','.join(str(r.id) for r in self.values)
         if self.values:
             await set_guild_config(interaction.guild.id, **{self.config_key: role_ids})
             names = ', '.join(r.name for r in self.values)
-            await interaction.response.send_message(f"{self.display_name} set to: {names}", ephemeral=True)
+            await interaction.response.send_message(
+                t(locale, "select_set_to", name=display_name, values=names), ephemeral=True
+            )
         else:
             await set_guild_config(interaction.guild.id, **{self.config_key: ''})
-            await interaction.response.send_message(f"{self.display_name} cleared.", ephemeral=True)
+            await interaction.response.send_message(
+                t(locale, "select_cleared", name=display_name), ephemeral=True
+            )
+        asyncio.create_task(_delete_after(interaction))
 
 
 class ConfigChannelSelect(ui.ChannelSelect):
-    def __init__(self, config_key: str, display_name: str, **kwargs):
+    def __init__(self, config_key: str, display_name_key: str, **kwargs):
         super().__init__(**kwargs)
         self.config_key = config_key
-        self.display_name = display_name
+        self.display_name_key = display_name_key
 
     async def callback(self, interaction: discord.Interaction):
+        locale = interaction.locale
+        display_name = t(locale, self.display_name_key)
         channel_ids = ','.join(str(c.id) for c in self.values)
         if self.values:
             await set_guild_config(interaction.guild.id, **{self.config_key: channel_ids})
             names = ', '.join(c.name for c in self.values)
-            await interaction.response.send_message(f"{self.display_name} set to: {names}", ephemeral=True)
+            await interaction.response.send_message(
+                t(locale, "select_set_to", name=display_name, values=names), ephemeral=True
+            )
         else:
             await set_guild_config(interaction.guild.id, **{self.config_key: ''})
-            await interaction.response.send_message(f"{self.display_name} cleared.", ephemeral=True)
+            await interaction.response.send_message(
+                t(locale, "select_cleared", name=display_name), ephemeral=True
+            )
+        asyncio.create_task(_delete_after(interaction))
 
 
-def _make_role_view(author_id, guild, config, config_key, display_name, placeholder):
-    select = ConfigRoleSelect(config_key, display_name, placeholder=placeholder, min_values=0, max_values=10)
+def _make_role_view(author_id, guild, config, config_key, i18n_prefix, locale):
+    select = ConfigRoleSelect(config_key, i18n_prefix + "_name",
+                              placeholder=t(locale, i18n_prefix + "_placeholder"),
+                              min_values=0, max_values=10)
     if config:
         defaults = _build_defaults(guild, _parse_role_ids(config.get(config_key)))
         if defaults:
@@ -100,8 +140,9 @@ def _make_role_view(author_id, guild, config, config_key, display_name, placehol
     return view
 
 
-def _make_channel_view(author_id, guild, config, config_key, display_name, placeholder, max_values=10):
-    select = ConfigChannelSelect(config_key, display_name, placeholder=placeholder,
+def _make_channel_view(author_id, guild, config, config_key, i18n_prefix, locale, max_values=10):
+    select = ConfigChannelSelect(config_key, i18n_prefix + "_name",
+                                 placeholder=t(locale, i18n_prefix + "_placeholder"),
                                  channel_types=[discord.ChannelType.text], min_values=0, max_values=max_values)
     if config:
         defaults = _build_channel_defaults(guild, _parse_channel_ids(config.get(config_key)))
@@ -127,16 +168,44 @@ def _build_channel_defaults(guild, channel_ids):
     return defaults
 
 
-
-
 class SetupView(ui.View):
-    def __init__(self, author_id: int):
+    def __init__(self, author_id: int, locale):
         super().__init__(timeout=120)
         self.author_id = author_id
+        self.locale = locale
+        self.message = None
+        self._child_interactions = []
+        self._child_followups = []
+        self.channels_button.label = t(locale, "btn_channels")
+        self.show_button.label = t(locale, "btn_show_config")
+        self.reset_button.label = t(locale, "btn_reset")
+
+    def _track(self, interaction, followups=None):
+        self._child_interactions.append(interaction)
+        self._child_followups.extend(followups or [])
+
+    async def on_timeout(self):
+        for msg in self._child_followups:
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
+        for inter in self._child_interactions:
+            try:
+                await inter.delete_original_response()
+            except discord.NotFound:
+                pass
+        if self.message:
+            try:
+                await self.message.delete()
+            except discord.NotFound:
+                pass
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author_id:
-            await interaction.response.send_message("Only the person who ran the command can use these buttons.", ephemeral=True)
+            await interaction.response.send_message(
+                t(interaction.locale, "only_invoker"), ephemeral=True
+            )
             return False
         return True
 
@@ -149,7 +218,7 @@ class SetupView(ui.View):
     @ui.button(label="RCON", style=discord.ButtonStyle.primary, emoji="\U0001f50c")
     async def rcon_button(self, interaction: discord.Interaction, button: ui.Button):
         config = await get_guild_config(interaction.guild.id)
-        modal = RconModal()
+        modal = RconModal(locale=interaction.locale)
         if config:
             modal.rcon_host.default = config.get('rcon_host') or '127.0.0.1'
             modal.rcon_port.default = str(config.get('rcon_port') or '27015')
@@ -161,58 +230,57 @@ class SetupView(ui.View):
         config = await get_guild_config(interaction.guild.id)
         guild = interaction.guild
         uid = interaction.user.id
+        locale = interaction.locale
 
-        admin_view = _make_role_view(uid, guild, config, 'admin_roles', 'Admin roles', "Select admin roles...")
+        admin_view = _make_role_view(uid, guild, config, 'admin_roles', 'admin_roles', locale)
         await interaction.response.send_message(
-            "**Admin roles** — Full access: can configure the bot, manage the server, and use all commands",
-            view=admin_view, ephemeral=True
+            t(locale, "admin_roles_desc"), view=admin_view, ephemeral=True
         )
 
-        mod_view = _make_role_view(uid, guild, config, 'moderator_roles', 'Moderator roles', "Select moderator roles...")
-        await interaction.followup.send(
-            "**Moderator roles** — Can kick/ban players, manage whitelist, and use moderation commands",
-            view=mod_view, ephemeral=True
+        mod_view = _make_role_view(uid, guild, config, 'moderator_roles', 'mod_roles', locale)
+        mod_msg = await interaction.followup.send(
+            t(locale, "mod_roles_desc"), view=mod_view, ephemeral=True, wait=True
         )
 
-        wl_view = _make_role_view(uid, guild, config, 'whitelist_roles', 'Whitelist roles', "Select whitelist roles...")
-        await interaction.followup.send(
-            "**Whitelist roles** — Users with these roles are automatically whitelisted on the server",
-            view=wl_view, ephemeral=True
+        wl_view = _make_role_view(uid, guild, config, 'whitelist_roles', 'wl_roles', locale)
+        wl_msg = await interaction.followup.send(
+            t(locale, "wl_roles_desc"), view=wl_view, ephemeral=True, wait=True
         )
+        self._track(interaction, followups=[mod_msg, wl_msg])
 
     @ui.button(label="Channels", style=discord.ButtonStyle.secondary, emoji="\U0001f4e2")
     async def channels_button(self, interaction: discord.Interaction, button: ui.Button):
         config = await get_guild_config(interaction.guild.id)
         guild = interaction.guild
         uid = interaction.user.id
+        locale = interaction.locale
 
-        ignore_view = _make_channel_view(uid, guild, config, 'ignore_channels', 'Ignore channels',
-                                         "Select channels to ignore...")
+        ignore_view = _make_channel_view(uid, guild, config, 'ignore_channels', 'ignore_channels', locale)
         await interaction.response.send_message(
-            "**Ignore channels** — Bot commands will be disabled in these channels",
-            view=ignore_view, ephemeral=True
+            t(locale, "ignore_channels_desc"), view=ignore_view, ephemeral=True
         )
 
-        notif_view = _make_channel_view(uid, guild, config, 'notification_channel', 'Notification channel',
-                                        "Select notification channel...", max_values=1)
-        await interaction.followup.send(
-            "**Notification channel** — Server events (player joins, restarts, etc.) will be posted here",
-            view=notif_view, ephemeral=True
+        notif_view = _make_channel_view(uid, guild, config, 'notification_channel', 'notif_channel', locale,
+                                        max_values=1)
+        notif_msg = await interaction.followup.send(
+            t(locale, "notif_channel_desc"), view=notif_view, ephemeral=True, wait=True
         )
+        self._track(interaction, followups=[notif_msg])
 
     @ui.button(label="Show config", style=discord.ButtonStyle.success, emoji="\U0001f4cb")
     async def show_button(self, interaction: discord.Interaction, button: ui.Button):
+        locale = interaction.locale
         config = await get_guild_config(interaction.guild.id)
         if config is None:
-            await interaction.response.send_message("No configuration found yet.", ephemeral=True)
+            await interaction.response.send_message(t(locale, "no_config_found"), ephemeral=True)
             return
         role_keys = ('admin_roles', 'moderator_roles', 'whitelist_roles')
         channel_keys = ('ignore_channels', 'notification_channel')
-        lines = [f"Configuration for **{interaction.guild.name}**:\n"]
+        lines = [t(locale, "config_header", guild=interaction.guild.name)]
         for key in CONFIG_KEYS:
             val = config.get(key)
             if key == 'rcon_pass':
-                val = '********' if val else 'Not set'
+                val = '********' if val else t(locale, "not_set")
             elif key in role_keys and val:
                 role_ids = [int(rid) for rid in val.split(',') if rid.strip()]
                 role_names = []
@@ -228,18 +296,21 @@ class SetupView(ui.View):
                     channel_names.append(f'#{channel.name}' if channel else f'Unknown ({cid})')
                 val = ', '.join(channel_names)
             elif val is None:
-                val = 'Not set'
+                val = t(locale, "not_set")
             lines.append(f"**{key}**: `{val}`")
         await interaction.response.send_message('\n'.join(lines), ephemeral=True)
+        self._track(interaction)
 
     @ui.button(label="Reset", style=discord.ButtonStyle.danger, emoji="\U0001f5d1")
     async def reset_button(self, interaction: discord.Interaction, button: ui.Button):
+        locale = interaction.locale
         config = await get_guild_config(interaction.guild.id)
         if config is None:
-            await interaction.response.send_message("No configuration to reset.", ephemeral=True)
+            await interaction.response.send_message(t(locale, "no_config_to_reset"), ephemeral=True)
             return
         await delete_guild_config(interaction.guild.id)
-        await interaction.response.send_message("Configuration has been reset.", ephemeral=True)
+        await interaction.response.send_message(t(locale, "config_reset"), ephemeral=True)
+        self._track(interaction)
 
 
 class ConfigCommands(commands.Cog):
@@ -247,17 +318,23 @@ class ConfigCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
-    async def pzsetup(self, ctx):
-        """Open the bot configuration panel"""
-        if ctx.guild is None:
-            await ctx.send("This command can only be used in a server.")
+    @app_commands.command(name="pzsetup", description="Open the bot configuration panel")
+    async def pzsetup(self, interaction: discord.Interaction):
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                t(interaction.locale, "dm_not_allowed"), ephemeral=True
+            )
             return
-        if not ctx.author.guild_permissions.administrator and ctx.guild.owner_id != ctx.author.id:
-            await ctx.send("You need administrator permissions to use this command.")
+        if not interaction.user.guild_permissions.administrator and interaction.guild.owner_id != interaction.user.id:
+            await interaction.response.send_message(
+                t(interaction.locale, "need_admin"), ephemeral=True
+            )
             return
-        view = SetupView(author_id=ctx.author.id)
-        await ctx.send("**PZ Bot Configuration**\nSelect what you want to configure:", view=view)
+        view = SetupView(author_id=interaction.user.id, locale=interaction.locale)
+        await interaction.response.send_message(
+            t(interaction.locale, "setup_title"), view=view, ephemeral=True
+        )
+        view.message = await interaction.original_response()
 
 
 async def setup(bot):
