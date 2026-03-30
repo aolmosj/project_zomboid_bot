@@ -134,7 +134,7 @@ MESSAGES = {
     },
     "rcon_server_address_label": {
         "en": "Server address (shown to players)",
-        "es": "Dirección del servidor (visible para jugadores)",
+        "es": "Dirección del servidor (para jugadores)",
     },
     "rcon_invalid_port": {
         "en": "Invalid port number.",
