@@ -276,7 +276,7 @@ class ConfigCommands(commands.Cog):
             return
         view = SetupView(author_id=interaction.user.id, locale=interaction.locale)
         await interaction.response.send_message(
-            t(interaction.locale, "setup_title"), view=view
+            t(interaction.locale, "setup_title"), view=view, ephemeral=True
         )
         view.message = await interaction.original_response()
 
