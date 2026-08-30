@@ -82,3 +82,22 @@ async def is_mod(interaction):
     mod_roles = config.get('moderator_roles') or ''
     role_ids = [int(rid) for rid in mod_roles.split(',') if rid.strip()]
     return any(r.id in role_ids for r in interaction.user.roles)
+
+
+async def can_restart(interaction):
+    """Guild administrators, or members holding a role from restart_roles.
+
+    Falls back to admin_roles when restart_roles has not been configured.
+    """
+    if interaction.guild is None:
+        return False
+    if interaction.user.guild_permissions.administrator:
+        return True
+    if interaction.guild.owner_id == interaction.user.id:
+        return True
+    config = await get_guild_config(interaction.guild.id)
+    if config is None:
+        return False
+    roles = config.get('restart_roles') or config.get('admin_roles') or ''
+    role_ids = [int(rid) for rid in roles.split(',') if rid.strip()]
+    return any(r.id in role_ids for r in interaction.user.roles)

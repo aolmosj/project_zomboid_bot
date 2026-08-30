@@ -8,7 +8,16 @@ _cache = {}
 CONFIG_KEYS = [
     'rcon_host', 'rcon_port', 'rcon_pass',
     'server_address', 'admin_roles', 'moderator_roles',
-    'whitelist_roles', 'ignore_channels', 'notification_channel'
+    'whitelist_roles', 'restart_roles', 'ignore_channels',
+    'notification_channel', 'nitrado_token', 'nitrado_service_id'
+]
+
+# Columns added after the initial schema. CREATE TABLE IF NOT EXISTS does not
+# touch an existing table, so they are applied with ALTER TABLE on every start.
+NEW_COLUMNS = [
+    ('restart_roles', 'TEXT'),
+    ('nitrado_token', 'TEXT'),
+    ('nitrado_service_id', 'TEXT'),
 ]
 
 async def init_db():
@@ -23,10 +32,18 @@ async def init_db():
                 admin_roles     TEXT,
                 moderator_roles TEXT,
                 whitelist_roles TEXT,
+                restart_roles   TEXT,
                 ignore_channels TEXT,
-                notification_channel TEXT
+                notification_channel TEXT,
+                nitrado_token   TEXT,
+                nitrado_service_id TEXT
             )
         ''')
+        cursor = await db.execute('PRAGMA table_info(guild_config)')
+        existing = {row[1] for row in await cursor.fetchall()}
+        for column, ddl in NEW_COLUMNS:
+            if column not in existing:
+                await db.execute(f'ALTER TABLE guild_config ADD COLUMN {column} {ddl}')
         await db.execute('''
             CREATE TABLE IF NOT EXISTS pz_users (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -254,6 +254,103 @@ MESSAGES = {
         "en": "Configuration has been reset.",
         "es": "La configuración se ha restablecido.",
     },
+    # Nitrado / restart
+    "btn_nitrado": {
+        "en": "Nitrado",
+        "es": "Nitrado",
+    },
+    "nitrado_modal_title": {
+        "en": "Nitrado API settings",
+        "es": "Ajustes de la API de Nitrado",
+    },
+    "nitrado_token_label": {
+        "en": "Nitrado token",
+        "es": "Token de Nitrado",
+    },
+    "nitrado_token_placeholder": {
+        "en": "Long-lived token from the Nitrado developer portal",
+        "es": "Token de larga duraci\u00f3n del portal de Nitrado",
+    },
+    "nitrado_service_id_label": {
+        "en": "Service ID",
+        "es": "ID de servicio",
+    },
+    "nitrado_service_id_placeholder": {
+        "en": "e.g. 1234567",
+        "es": "ej. 1234567",
+    },
+    "nitrado_configured": {
+        "en": "Nitrado settings saved.",
+        "es": "Ajustes de Nitrado guardados.",
+    },
+    "nitrado_invalid_service_id": {
+        "en": "The service ID must be a number.",
+        "es": "El ID de servicio debe ser un n\u00famero.",
+    },
+    "nitrado_not_configured": {
+        "en": "Nitrado is not configured. Run `/pzsetup` and use the Nitrado button.",
+        "es": "Nitrado no est\u00e1 configurado. Usa `/pzsetup` y el bot\u00f3n Nitrado.",
+    },
+    "nitrado_error": {
+        "en": "Nitrado API error: {error}",
+        "es": "Error de la API de Nitrado: {error}",
+    },
+    "restart_confirm_now": {
+        "en": "\u26a0\ufe0f This will **restart the game server immediately**. Continue?",
+        "es": "\u26a0\ufe0f Esto **reiniciar\u00e1 el servidor inmediatamente**. \u00bfContinuar?",
+    },
+    "restart_confirm_delay": {
+        "en": "\u26a0\ufe0f Players will be warned and the server will restart in **{delay} min**. Continue?",
+        "es": "\u26a0\ufe0f Se avisar\u00e1 a los jugadores y el servidor se reiniciar\u00e1 en **{delay} min**. \u00bfContinuar?",
+    },
+    "btn_confirm": {
+        "en": "Confirm",
+        "es": "Confirmar",
+    },
+    "btn_cancel": {
+        "en": "Cancel",
+        "es": "Cancelar",
+    },
+    "restart_confirmed": {
+        "en": "Restart confirmed.",
+        "es": "Reinicio confirmado.",
+    },
+    "restart_cancelled": {
+        "en": "Restart cancelled.",
+        "es": "Reinicio cancelado.",
+    },
+    "restart_scheduled": {
+        "en": "Restart scheduled in {delay} min by {user}. Players are being warned.",
+        "es": "Reinicio programado en {delay} min por {user}. Se est\u00e1 avisando a los jugadores.",
+    },
+    "restart_warning": {
+        "en": "Server restarting in {minutes} minute(s). Please find a safe spot.",
+        "es": "El servidor se reiniciar\u00e1 en {minutes} minuto(s). Busca un lugar seguro.",
+    },
+    "restart_aborted": {
+        "en": "Restart aborted: the warning could not be sent over RCON.",
+        "es": "Reinicio abortado: no se pudo enviar el aviso por RCON.",
+    },
+    "restart_requested": {
+        "en": "\U0001f504 Restart requested by {user}. The server will be back shortly.",
+        "es": "\U0001f504 Reinicio solicitado por {user}. El servidor volver\u00e1 en breve.",
+    },
+    "restart_failed": {
+        "en": "The restart could not be requested: {error}",
+        "es": "No se pudo solicitar el reinicio: {error}",
+    },
+    "restart_roles_name": {
+        "en": "Restart roles",
+        "es": "Roles de reinicio",
+    },
+    "restart_roles_placeholder": {
+        "en": "Select roles allowed to restart...",
+        "es": "Selecciona roles que pueden reiniciar...",
+    },
+    "restart_roles_desc": {
+        "en": "**Restart roles** \u2014 These roles can run `/pzrestart` (guild admins always can)",
+        "es": "**Roles de reinicio** \u2014 Estos roles pueden usar `/pzrestart` (los administradores siempre pueden)",
+    },
 }
 
 
