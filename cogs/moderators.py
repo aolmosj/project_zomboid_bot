@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from lib.common import rcon_interaction_command, is_channel_allowed, is_mod
+from lib.common import rcon_interaction_command, is_channel_allowed, is_mod, servermsg, normalize_servermsg
 from lib.i18n import t
 
 
@@ -126,9 +126,14 @@ class ModeratorCommands(commands.Cog):
             )
             return
         await interaction.response.defer()
-        c_run = await rcon_interaction_command(interaction, f"servermsg {message}")
+        c_run = await servermsg(interaction, message)
         if c_run is not None:
-            await interaction.followup.send(c_run)
+            # Echo what players actually see, not just the server's terse ack.
+            await interaction.followup.send(t(
+                interaction.locale, "servermsg_sent",
+                message=normalize_servermsg(message),
+                reply=c_run.strip() or "-",
+            ))
 
     @app_commands.command(name="pzunwhitelist", description="Remove a user from the whitelist")
     @app_commands.describe(user="User to remove from whitelist")

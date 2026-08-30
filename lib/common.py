@@ -45,6 +45,32 @@ async def rcon_interaction_command(interaction, command):
         return None
 
 
+def normalize_servermsg(message):
+    """The text players will actually see in game.
+
+    The Discord field already delimits the text, so quotes typed around the
+    whole message are the PZ syntax leaking through and get dropped. Any that
+    remain become single quotes: a double quote would end the argument early
+    and PZ has no escape for it, so it can never be shown either way.
+    """
+    message = message.strip()
+    # Exactly one pair, around everything: 'a "b" c' and '"a" y "b"' keep theirs.
+    if message.count('"') == 2 and message.startswith('"') and message.endswith('"'):
+        message = message[1:-1]
+    return message.replace('"', "'")
+
+
+async def servermsg(interaction, message):
+    """Broadcast an in-game message to every connected player.
+
+    PZ expects the text in double quotes; without them it answers with its
+    usage help instead of broadcasting anything.
+    """
+    return await rcon_interaction_command(
+        interaction, 'servermsg "{}"'.format(normalize_servermsg(message))
+    )
+
+
 async def is_channel_allowed(interaction):
     if interaction.guild is None:
         await interaction.response.send_message(
@@ -81,4 +107,23 @@ async def is_mod(interaction):
         return False
     mod_roles = config.get('moderator_roles') or ''
     role_ids = [int(rid) for rid in mod_roles.split(',') if rid.strip()]
+    return any(r.id in role_ids for r in interaction.user.roles)
+
+
+async def can_restart(interaction):
+    """Guild administrators, or members holding a role from restart_roles.
+
+    Falls back to admin_roles when restart_roles has not been configured.
+    """
+    if interaction.guild is None:
+        return False
+    if interaction.user.guild_permissions.administrator:
+        return True
+    if interaction.guild.owner_id == interaction.user.id:
+        return True
+    config = await get_guild_config(interaction.guild.id)
+    if config is None:
+        return False
+    roles = config.get('restart_roles') or config.get('admin_roles') or ''
+    role_ids = [int(rid) for rid in roles.split(',') if rid.strip()]
     return any(r.id in role_ids for r in interaction.user.roles)

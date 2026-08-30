@@ -49,6 +49,38 @@ class RconModal(ui.Modal):
         asyncio.create_task(_delete_after(interaction))
 
 
+class NitradoModal(ui.Modal):
+    def __init__(self, locale):
+        super().__init__(title=t(locale, "nitrado_modal_title"))
+        self.locale = locale
+        self.nitrado_token = ui.TextInput(
+            label=t(locale, "nitrado_token_label"),
+            placeholder=t(locale, "nitrado_token_placeholder"),
+        )
+        self.nitrado_service_id = ui.TextInput(
+            label=t(locale, "nitrado_service_id_label"),
+            placeholder=t(locale, "nitrado_service_id_placeholder"),
+        )
+        self.add_item(self.nitrado_token)
+        self.add_item(self.nitrado_service_id)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        locale = interaction.locale
+        service_id = self.nitrado_service_id.value.strip()
+        if not service_id.isdigit():
+            await interaction.response.send_message(
+                t(locale, "nitrado_invalid_service_id"), ephemeral=True
+            )
+            return
+        await set_guild_config(
+            interaction.guild.id,
+            nitrado_token=self.nitrado_token.value.strip(),
+            nitrado_service_id=service_id,
+        )
+        await interaction.response.send_message(t(locale, "nitrado_configured"), ephemeral=True)
+        asyncio.create_task(_delete_after(interaction))
+
+
 def _parse_role_ids(value):
     if not value:
         return []
@@ -176,6 +208,7 @@ class SetupView(ui.View):
         self.message = None
         self._child_interactions = []
         self._child_followups = []
+        self.nitrado_button.label = t(locale, "btn_nitrado")
         self.channels_button.label = t(locale, "btn_channels")
         self.show_button.label = t(locale, "btn_show_config")
         self.reset_button.label = t(locale, "btn_reset")
@@ -225,6 +258,15 @@ class SetupView(ui.View):
             modal.server_address.default = config.get('server_address') or ''
         await interaction.response.send_modal(modal)
 
+    @ui.button(label="Nitrado", style=discord.ButtonStyle.primary, emoji="\U0001f504")
+    async def nitrado_button(self, interaction: discord.Interaction, button: ui.Button):
+        config = await get_guild_config(interaction.guild.id)
+        modal = NitradoModal(locale=interaction.locale)
+        if config:
+            # The token is never pre-filled: Discord would render it in clear text.
+            modal.nitrado_service_id.default = config.get('nitrado_service_id') or ''
+        await interaction.response.send_modal(modal)
+
     @ui.button(label="Roles", style=discord.ButtonStyle.secondary, emoji="\U0001f465")
     async def roles_button(self, interaction: discord.Interaction, button: ui.Button):
         config = await get_guild_config(interaction.guild.id)
@@ -246,7 +288,12 @@ class SetupView(ui.View):
         wl_msg = await interaction.followup.send(
             t(locale, "wl_roles_desc"), view=wl_view, ephemeral=True, wait=True
         )
-        self._track(interaction, followups=[mod_msg, wl_msg])
+
+        restart_view = _make_role_view(uid, guild, config, 'restart_roles', 'restart_roles', locale)
+        restart_msg = await interaction.followup.send(
+            t(locale, "restart_roles_desc"), view=restart_view, ephemeral=True, wait=True
+        )
+        self._track(interaction, followups=[mod_msg, wl_msg, restart_msg])
 
     @ui.button(label="Channels", style=discord.ButtonStyle.secondary, emoji="\U0001f4e2")
     async def channels_button(self, interaction: discord.Interaction, button: ui.Button):
@@ -274,12 +321,12 @@ class SetupView(ui.View):
         if config is None:
             await interaction.response.send_message(t(locale, "no_config_found"), ephemeral=True)
             return
-        role_keys = ('admin_roles', 'moderator_roles', 'whitelist_roles')
+        role_keys = ('admin_roles', 'moderator_roles', 'whitelist_roles', 'restart_roles')
         channel_keys = ('ignore_channels', 'notification_channel')
         lines = [t(locale, "config_header", guild=interaction.guild.name)]
         for key in CONFIG_KEYS:
             val = config.get(key)
-            if key == 'rcon_pass':
+            if key in ('rcon_pass', 'nitrado_token'):
                 val = '********' if val else t(locale, "not_set")
             elif key in role_keys and val:
                 role_ids = [int(rid) for rid in val.split(',') if rid.strip()]

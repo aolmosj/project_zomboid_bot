@@ -40,6 +40,7 @@ class PZBot(commands.Bot):
             'cogs.users',
             'cogs.moderators',
             'cogs.admins',
+            'cogs.server',
         ]
         for extension in extensions:
             await self.load_extension(extension)

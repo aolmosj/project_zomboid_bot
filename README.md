@@ -10,11 +10,13 @@ Discord bot for managing your Project Zomboid server with multi-guild support an
 - **Role-based commands** — admin, moderator and user commands are gated by configurable Discord roles.
 - **User self-service** — players with the correct role can request PZ server access via `/pzrequestaccess`. The bot creates their account and DMs them the credentials.
 - **RCON integration** — commands are sent to the PZ server using the Source RCON protocol via the `rcon` Python library (no external binary needed).
+- **Server restarts** — `/pzrestart` warns players in game, saves the world and restarts the server through the Nitrado API, which RCON cannot do on its own.
 
 ## Requirements
 
 - Python 3.10+
 - A Project Zomboid dedicated server with RCON enabled
+- A Nitrado API token and service ID — only for `/pzrestart`; every other command works without them
 
 ## Getting started
 
@@ -32,7 +34,7 @@ source .venv/bin/activate   # Linux / macOS
 pip install -r requirements.txt
 ```
 
-Dependencies: `discord.py`, `python-dotenv`, `rcon`, `aiosqlite`
+Dependencies: `discord.py`, `python-dotenv`, `rcon`, `aiosqlite`, `aiohttp`
 
 ## Configuration
 
@@ -50,6 +52,12 @@ Dependencies: `discord.py`, `python-dotenv`, `rcon`, `aiosqlite`
    python pzbot.py
    ```
 4. In your Discord server, run `/pzsetup` to open the interactive configuration panel where you can set RCON connection, roles and channels.
+
+To enable `/pzrestart`, use the same panel: the **Nitrado** button stores the API token and
+service ID, and the **Roles** button sets which roles may restart the server. The token is
+stored per guild and is masked in *Show config*. Create the token at
+[server.nitrado.net](https://server.nitrado.net) under the developer/API section; it needs
+permission to manage the gameserver, not just read it.
 
 ## Commands
 
@@ -80,6 +88,13 @@ All commands are Discord slash commands — type `/` in any channel to see the a
 | `/pzteleport` | Teleport a user to another user |
 | `/pzservermsg` | Broadcast a server message |
 | `/pzsave` | Save the current world |
+
+### Server Control
+Gated by the **restart roles** configured in `/pzsetup`, plus guild administrators.
+
+| Command | Description |
+|---------|-------------|
+| `/pzrestart` | Restart the server via Nitrado. Warns players over RCON and saves the world first; the delay defaults to 1 minute, and the `Now` option skips both the warning and the save |
 
 ### User Commands
 | Command | Description |
