@@ -9,6 +9,9 @@ from lib.nitrado import restart_gameserver, NitradoError
 
 # Minutes before the restart at which players get a warning, descending.
 WARNING_MARKS = [10, 5, 1]
+# Used when /pzrestart is invoked without picking a delay. Restarts are always
+# announced, so there is no zero-delay option to fall back to.
+DEFAULT_DELAY = 5
 
 
 class ConfirmRestartView(ui.View):
@@ -74,33 +77,24 @@ async def _run_restart(interaction, delay):
     locale = interaction.locale
     config = await get_guild_config(interaction.guild.id)
     user = interaction.user.display_name
-    has_rcon = bool(config.get('rcon_pass'))
-
-    if delay > 0:
-        if not has_rcon:
-            # A delay only buys players time if they are told about it. Refuse
-            # rather than restart silently on them.
-            await _announce(interaction, config, t(locale, "restart_no_rcon"))
+    await _announce(interaction, config, t(locale, "restart_scheduled", delay=delay, user=user))
+    marks = [m for m in WARNING_MARKS if m <= delay]
+    remaining = delay
+    for i, mark in enumerate(marks):
+        await asyncio.sleep((remaining - mark) * 60)
+        remaining = mark
+        warning = t(locale, "restart_warning", minutes=mark)
+        sent = await servermsg(interaction, warning)
+        # The reply is the only evidence the broadcast landed; keep it in the
+        # journal so a silent no-op can be diagnosed afterwards.
+        print(f"servermsg({mark} min) -> {sent!r}")
+        if sent is None and i == 0:
+            # RCON is unreachable: the players would get no warning at all.
+            await _announce(interaction, config, t(locale, "restart_aborted"))
             return
-        await _announce(interaction, config, t(locale, "restart_scheduled", delay=delay, user=user))
-        marks = [m for m in WARNING_MARKS if m <= delay]
-        remaining = delay
-        for i, mark in enumerate(marks):
-            await asyncio.sleep((remaining - mark) * 60)
-            remaining = mark
-            warning = t(locale, "restart_warning", minutes=mark)
-            sent = await servermsg(interaction, warning)
-            # The reply is the only evidence the broadcast landed; keep it in
-            # the journal so a silent no-op can be diagnosed afterwards.
-            print(f"servermsg({mark} min) -> {sent!r}")
-            if sent is None and i == 0:
-                # RCON is unreachable: the players would get no warning at all.
-                await _announce(interaction, config, t(locale, "restart_aborted"))
-                return
-        await asyncio.sleep(remaining * 60)
+    await asyncio.sleep(remaining * 60)
 
-    if has_rcon:
-        await rcon_interaction_command(interaction, "save")
+    await rcon_interaction_command(interaction, "save")
 
     try:
         await restart_gameserver(
@@ -127,7 +121,6 @@ class ServerCommands(commands.Cog):
     @app_commands.command(name="pzrestart", description="Restart the game server")
     @app_commands.describe(delay="Minutes to warn players before restarting")
     @app_commands.choices(delay=[
-        app_commands.Choice(name="Now", value=0),
         app_commands.Choice(name="1 minute", value=1),
         app_commands.Choice(name="5 minutes", value=5),
         app_commands.Choice(name="10 minutes", value=10),
@@ -151,10 +144,15 @@ class ServerCommands(commands.Cog):
                 t(interaction.locale, "nitrado_not_configured"), ephemeral=True
             )
             return
+        if not config.get('rcon_pass'):
+            # Every restart warns players and saves first, so RCON is required.
+            await interaction.response.send_message(
+                t(interaction.locale, "restart_no_rcon"), ephemeral=True
+            )
+            return
 
-        minutes = delay.value if delay is not None else 0
-        prompt = (t(interaction.locale, "restart_confirm_delay", delay=minutes)
-                  if minutes > 0 else t(interaction.locale, "restart_confirm_now"))
+        minutes = delay.value if delay is not None else DEFAULT_DELAY
+        prompt = t(interaction.locale, "restart_confirm_delay", delay=minutes)
         view = ConfirmRestartView(interaction.user.id, minutes, interaction.locale)
         await interaction.response.send_message(prompt, view=view, ephemeral=True)
 

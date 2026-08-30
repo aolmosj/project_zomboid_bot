@@ -295,10 +295,6 @@ MESSAGES = {
         "en": "Nitrado API error: {error}",
         "es": "Error de la API de Nitrado: {error}",
     },
-    "restart_confirm_now": {
-        "en": "\u26a0\ufe0f This will **restart the game server immediately**. Continue?",
-        "es": "\u26a0\ufe0f Esto **reiniciar\u00e1 el servidor inmediatamente**. \u00bfContinuar?",
-    },
     "restart_confirm_delay": {
         "en": "\u26a0\ufe0f Players will be warned and the server will restart in **{delay} min**. Continue?",
         "es": "\u26a0\ufe0f Se avisar\u00e1 a los jugadores y el servidor se reiniciar\u00e1 en **{delay} min**. \u00bfContinuar?",
@@ -328,8 +324,8 @@ MESSAGES = {
         "es": "El servidor se reiniciar\u00e1 en {minutes} minuto(s). Busca un lugar seguro.",
     },
     "restart_no_rcon": {
-        "en": "RCON is not configured, so players cannot be warned. Restart aborted \u2014 use the `Now` option to restart without a warning.",
-        "es": "RCON no est\u00e1 configurado, as\u00ed que no se puede avisar a los jugadores. Reinicio abortado \u2014 usa la opci\u00f3n `Now` para reiniciar sin aviso.",
+        "en": "RCON is not configured, so players cannot be warned and the world cannot be saved. Restart aborted \u2014 configure RCON with `/pzsetup`.",
+        "es": "RCON no est\u00e1 configurado, as\u00ed que no se puede avisar a los jugadores ni guardar la partida. Reinicio abortado \u2014 config\u00faralo con `/pzsetup`.",
     },
     "restart_aborted": {
         "en": "Restart aborted: the warning could not be sent over RCON.",

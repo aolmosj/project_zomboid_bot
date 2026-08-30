@@ -80,6 +80,7 @@ All commands are Discord slash commands — type `/` in any channel to see the a
 | `/pzteleport` | Teleport a user to another user |
 | `/pzservermsg` | Broadcast a server message |
 | `/pzsave` | Save the current world |
+| `/pzrestart` | Warn players, save and restart the server via Nitrado |
 
 ### User Commands
 | Command | Description |
