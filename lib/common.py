@@ -45,8 +45,8 @@ async def rcon_interaction_command(interaction, command):
         return None
 
 
-def _quote(message):
-    """Wrap a message for PZ's servermsg, which expects it in double quotes.
+def normalize_servermsg(message):
+    """The text players will actually see in game.
 
     The Discord field already delimits the text, so quotes typed around the
     whole message are the PZ syntax leaking through and get dropped. Any that
@@ -57,12 +57,18 @@ def _quote(message):
     # Exactly one pair, around everything: 'a "b" c' and '"a" y "b"' keep theirs.
     if message.count('"') == 2 and message.startswith('"') and message.endswith('"'):
         message = message[1:-1]
-    return 'servermsg "{}"'.format(message.replace('"', "'"))
+    return message.replace('"', "'")
 
 
 async def servermsg(interaction, message):
-    """Broadcast an in-game message to every connected player."""
-    return await rcon_interaction_command(interaction, _quote(message))
+    """Broadcast an in-game message to every connected player.
+
+    PZ expects the text in double quotes; without them it answers with its
+    usage help instead of broadcasting anything.
+    """
+    return await rcon_interaction_command(
+        interaction, 'servermsg "{}"'.format(normalize_servermsg(message))
+    )
 
 
 async def is_channel_allowed(interaction):

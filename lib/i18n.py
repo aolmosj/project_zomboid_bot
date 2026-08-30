@@ -254,6 +254,11 @@ MESSAGES = {
         "en": "Configuration has been reset.",
         "es": "La configuración se ha restablecido.",
     },
+    "servermsg_sent": {
+        "en": "\U0001f4e2 **Broadcast to the server:**\n> {message}\n*{reply}*",
+        "es": "\U0001f4e2 **Enviado al servidor:**\n> {message}\n*{reply}*",
+    },
+
     # Nitrado / restart
     "btn_nitrado": {
         "en": "Nitrado",
