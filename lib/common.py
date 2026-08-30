@@ -45,6 +45,13 @@ async def rcon_interaction_command(interaction, command):
         return None
 
 
+async def servermsg(interaction, message):
+    """Broadcast an in-game message. PZ expects the text in double quotes."""
+    return await rcon_interaction_command(
+        interaction, 'servermsg "{}"'.format(message.replace('"', "'"))
+    )
+
+
 async def is_channel_allowed(interaction):
     if interaction.guild is None:
         await interaction.response.send_message(

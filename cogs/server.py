@@ -2,7 +2,7 @@ import asyncio
 import discord
 from discord import app_commands, ui
 from discord.ext import commands
-from lib.common import is_channel_allowed, can_restart, rcon_interaction_command
+from lib.common import is_channel_allowed, can_restart, rcon_interaction_command, servermsg
 from lib.guild_config import get_guild_config
 from lib.i18n import t
 from lib.nitrado import restart_gameserver, NitradoError
@@ -77,16 +77,22 @@ async def _run_restart(interaction, delay):
     has_rcon = bool(config.get('rcon_pass'))
 
     if delay > 0:
+        if not has_rcon:
+            # A delay only buys players time if they are told about it. Refuse
+            # rather than restart silently on them.
+            await _announce(interaction, config, t(locale, "restart_no_rcon"))
+            return
         await _announce(interaction, config, t(locale, "restart_scheduled", delay=delay, user=user))
         marks = [m for m in WARNING_MARKS if m <= delay]
         remaining = delay
         for i, mark in enumerate(marks):
             await asyncio.sleep((remaining - mark) * 60)
             remaining = mark
-            if not has_rcon:
-                continue
             warning = t(locale, "restart_warning", minutes=mark)
-            sent = await rcon_interaction_command(interaction, f"servermsg {warning}")
+            sent = await servermsg(interaction, warning)
+            # The reply is the only evidence the broadcast landed; keep it in
+            # the journal so a silent no-op can be diagnosed afterwards.
+            print(f"servermsg({mark} min) -> {sent!r}")
             if sent is None and i == 0:
                 # RCON is unreachable: the players would get no warning at all.
                 await _announce(interaction, config, t(locale, "restart_aborted"))
