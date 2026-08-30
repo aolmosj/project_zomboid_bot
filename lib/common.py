@@ -45,11 +45,24 @@ async def rcon_interaction_command(interaction, command):
         return None
 
 
+def _quote(message):
+    """Wrap a message for PZ's servermsg, which expects it in double quotes.
+
+    The Discord field already delimits the text, so quotes typed around the
+    whole message are the PZ syntax leaking through and get dropped. Any that
+    remain become single quotes: a double quote would end the argument early
+    and PZ has no escape for it, so it can never be shown either way.
+    """
+    message = message.strip()
+    # Exactly one pair, around everything: 'a "b" c' and '"a" y "b"' keep theirs.
+    if message.count('"') == 2 and message.startswith('"') and message.endswith('"'):
+        message = message[1:-1]
+    return 'servermsg "{}"'.format(message.replace('"', "'"))
+
+
 async def servermsg(interaction, message):
-    """Broadcast an in-game message. PZ expects the text in double quotes."""
-    return await rcon_interaction_command(
-        interaction, 'servermsg "{}"'.format(message.replace('"', "'"))
-    )
+    """Broadcast an in-game message to every connected player."""
+    return await rcon_interaction_command(interaction, _quote(message))
 
 
 async def is_channel_allowed(interaction):
