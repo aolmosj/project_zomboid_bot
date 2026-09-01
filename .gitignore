@@ -3,3 +3,4 @@
 __pycache__/
 guild_config.db
 .pzbot-venv/
+.venv/

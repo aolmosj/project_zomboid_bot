@@ -1,0 +1,42 @@
+[Unit]
+Description=Project Zomboid Discord Commands Bot
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=pzbot
+Group=pzbot
+WorkingDirectory=/opt/pzbot
+
+# DISCORD_TOKEN only, kept out of the checkout so deploying never touches it.
+EnvironmentFile=/etc/pzbot/env
+# State lives outside the checkout too, so git can own /opt/pzbot entirely and a
+# deploy can never put the database at risk.
+Environment=PZBOT_DB=/var/lib/pzbot/guild_config.db
+# ProtectSystem makes the checkout read-only; without this Python would try to
+# write __pycache__ on every start and fail.
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+ExecStart=/opt/pzbot/.venv/bin/python -u pzbot.py
+
+Restart=always
+RestartSec=10
+SyslogIdentifier=pzbot
+
+# The bot needs its own state directory and outbound network, nothing else.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pzbot
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,7 +1,10 @@
 import aiosqlite
 import os
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'guild_config.db')
+# Set by the systemd unit so state lives outside the checkout. The fallback
+# keeps a plain `python pzbot.py` from a clone working with no configuration.
+DB_PATH = os.environ.get('PZBOT_DB') or os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), 'guild_config.db')
 
 _cache = {}
 

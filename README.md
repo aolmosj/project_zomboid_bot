@@ -64,47 +64,76 @@ permission to manage the gameserver, not just read it.
 Run the bot under systemd rather than a terminal multiplexer: it comes back after a
 crash or a reboot, and its output goes somewhere that outlives a scrollback buffer.
 
-### Install
+The layout keeps the three things apart that a single checkout used to hold at once —
+code, secrets and state — so that deploying can never put the database at risk:
 
-`PZ-Command-Bot.service` ships the unit. It hardcodes the paths of one particular
-host, so **edit `WorkingDirectory` and `ExecStart` to match your checkout before
-copying it**, then:
+| | Where | Owner |
+|---|---|---|
+| Code | `/opt/pzbot` (fixed location) | `root`, read-only to the service |
+| Secrets | `/etc/pzbot/env` | `root:pzbot`, mode 640 |
+| State | `/var/lib/pzbot/guild_config.db` | `pzbot` |
+| Service account | `pzbot`, system user, no shell | |
+
+`/opt/pzbot` is a convention, not one machine's path. That is what lets
+`deploy/pzbot.service` carry absolute paths without anyone having to edit a tracked
+file — which would otherwise conflict on the next pull.
+
+### First install
 
 ```bash
-sudo cp PZ-Command-Bot.service /etc/systemd/system/pzbot.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now pzbot
+sudo git clone https://github.com/aolmosj/project_zomboid_bot.git /opt/pzbot
+sudo /opt/pzbot/deploy/bootstrap.sh          # creates the user, venv, dirs and unit
+sudo vi /etc/pzbot/env                       # put the real DISCORD_TOKEN in
+sudo /opt/pzbot/deploy/bootstrap.sh          # re-run: it is idempotent
 ```
 
-`ExecStart` must point at the **virtualenv's** interpreter, not the system one — the
-bot's dependencies are not installed system-wide. `-u` keeps output unbuffered so log
-lines reach the journal as they happen.
+The first run stops at the placeholder token on purpose. A token that silently
+"works" is worse than a service that refuses to start.
 
-If the bot was previously started by hand (a `screen` or `tmux` session, a bare
-`python pzbot.py`), **stop it first**. Two instances answer the same slash command
-twice and both act on it.
+### Update
+
+```bash
+cd /opt/pzbot && sudo git pull
+sudo systemctl restart pzbot
+```
+
+Re-run `bootstrap.sh` instead when `requirements.txt` or `deploy/pzbot.service`
+changed; it is idempotent and ends by restarting the service.
+
+### Migrating an older install
+
+Earlier versions kept the database and the token inside the checkout. Move them out
+once, with the service stopped:
+
+```bash
+sudo systemctl stop pzbot
+sudo install -o pzbot -g pzbot -m 640 /old/checkout/guild_config.db /var/lib/pzbot/guild_config.db
+sudo grep '^DISCORD_TOKEN=' /old/checkout/.env | sudo tee /etc/pzbot/env
+sudo chown root:pzbot /etc/pzbot/env && sudo chmod 640 /etc/pzbot/env
+sudo /opt/pzbot/deploy/bootstrap.sh
+```
+
+`bootstrap.sh` refuses to run while a `guild_config.db` remains inside `/opt/pzbot`:
+two files of that name with only one of them read is a trap worth failing on.
 
 ### Verify
 
 ```bash
 systemctl status pzbot --no-pager
 journalctl -u pzbot -n 30 --no-pager
+systemd-cgls -u pzbot.service --no-pager     # exactly one process
 ```
 
-A healthy start logs `logging in using static token` and then
-`Shard ID None has connected to Gateway`. To confirm there is exactly one instance —
-`pgrep` matches its own command line, so ask systemd instead:
-
-```bash
-systemd-cgls -u pzbot.service --no-pager
-```
+A healthy start logs `logging in using static token` and then `Shard ID None has
+connected to Gateway`. Use `systemd-cgls` rather than `pgrep` to count instances:
+`pgrep -f pzbot` matches its own command line.
 
 ### Logs
 
 Everything goes to the journal, which handles rotation and retention:
 
 ```bash
-journalctl -u pzbot -f            # follow
+journalctl -u pzbot -f
 journalctl -u pzbot --since today
 ```
 
@@ -114,32 +143,24 @@ there. That last one matters: a restart countdown runs detached from the interac
 that started it, and the only trace of one dying is asyncio's "Task exception was
 never retrieved".
 
-### Update
-
-```bash
-cd /path/to/checkout && git pull
-sudo systemctl restart pzbot
-```
-
-Re-copy the unit and `daemon-reload` only when `PZ-Command-Bot.service` itself
-changed. `guild_config.db` lives in `WorkingDirectory` and is never touched by a pull;
-back it up separately, since it holds the RCON password, the Nitrado token and the
-registered users, and is gitignored.
-
 ### Troubleshooting
 
 `Failed to determine user credentials: No such process` — the unit sets `User=` to an
 account that does not exist. systemd reports the NSS lookup failure with that errno,
-so read it as "no such user". The message is logged as `(python3)` rather than the
-unit's identifier because the process is forked but has not exec'd yet.
+so read it as "no such user". It is logged as `(python3)` rather than the unit's
+identifier because the process is forked but has not exec'd yet.
 
 `The unit files have no installation config` — the unit is missing its `[Install]`
-section, so it cannot be enabled. Usually means an older copy of the file was
+section, so it cannot be enabled. Usually means an older copy of the file is
 installed than the one you edited.
 
-`ModuleNotFoundError` on start — `ExecStart` is using the system interpreter instead
-of the venv, or the venv is missing dependencies: `.venv/bin/pip install -r
-requirements.txt`.
+`ModuleNotFoundError` on start — the venv is missing dependencies, or was moved
+rather than rebuilt: a venv bakes in absolute paths. Delete `/opt/pzbot/.venv` and
+re-run `bootstrap.sh`.
+
+`Read-only file system` writing anything under `/opt/pzbot` — expected.
+`ProtectSystem=strict` keeps the service from rewriting its own code. Anything the
+bot needs to write belongs in `/var/lib/pzbot`.
 
 ## Commands
 
