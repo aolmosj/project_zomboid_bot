@@ -14,50 +14,12 @@ Discord bot for managing your Project Zomboid server with multi-guild support an
 
 ## Requirements
 
-- Python 3.10+
+- A Discord application with a bot token, and the bot invited to your guild
 - A Project Zomboid dedicated server with RCON enabled
-- A Nitrado API token and service ID — only for `/pzrestart`; every other command works without them
-
-## Getting started
-
-```bash
-# Clone the repository
-git clone https://github.com/aolmosj/project_zomboid_bot.git
-cd project_zomboid_bot
-
-# Create and activate a virtual environment
-python3 -m venv .venv
-source .venv/bin/activate   # Linux / macOS
-# .venv\Scripts\activate    # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-Dependencies: `discord.py`, `python-dotenv`, `rcon`, `aiosqlite`, `aiohttp`
-
-## Configuration
-
-1. Create a `.env` file from the template:
-   ```bash
-   cp .env.sample .env
-   ```
-2. Add your Discord bot token to `.env`:
-   ```
-   DISCORD_TOKEN=YourTokenHere
-   ```
-3. Start the bot:
-   ```bash
-   source .venv/bin/activate
-   python pzbot.py
-   ```
-4. In your Discord server, run `/pzsetup` to open the interactive configuration panel where you can set RCON connection, roles and channels.
-
-To enable `/pzrestart`, use the same panel: the **Nitrado** button stores the API token and
-service ID, and the **Roles** button sets which roles may restart the server. The token is
-stored per guild and is masked in *Show config*. Create the token at
-[server.nitrado.net](https://server.nitrado.net) under the developer/API section; it needs
-permission to manage the gameserver, not just read it.
+- A Debian/Ubuntu host with systemd, to run `deploy/bootstrap.sh`
+- A Nitrado API token and service ID — only for `/pzrestart`; every other command
+  works without them
+- Python 3.10+ only for local development; a deployment builds its own virtualenv
 
 ## Deployment
 
@@ -162,11 +124,37 @@ re-run `bootstrap.sh`.
 `ProtectSystem=strict` keeps the service from rewriting its own code. Anything the
 bot needs to write belongs in `/var/lib/pzbot`.
 
+## Setting up the bot in Discord
+
+Deploying gets the bot online; everything else is configured from Discord and stored
+per guild, so one instance can serve several servers with different settings.
+
+Run `/pzsetup` as a guild administrator. The panel is ephemeral — only you see it — and
+deletes itself after two minutes of inactivity.
+
+| Button | What it stores |
+|---|---|
+| **RCON** | Host, port, password, and the public server address shown to players |
+| **Nitrado** | API token and service ID, required by `/pzrestart` |
+| **Roles** | Which roles count as admin, moderator, whitelist and restart |
+| **Channels** | Channels where the bot stays quiet, and the one it posts events to |
+| **Show config** | The current values, with the RCON password and Nitrado token masked |
+| **Reset** | Discards this guild's configuration |
+
+Set the **notification channel**: restarts announce their progress there, and it is
+where a countdown reports a failure. Without it those messages fall back to the
+interaction that started them, which expires.
+
+For the Nitrado token, go to [server.nitrado.net](https://server.nitrado.net) and find
+the developer/API section. The token needs permission to **manage** the gameserver, not
+just read it — a read-only token passes every status check and then fails the restart
+with a 403.
+
 ## Commands
 
 All commands are Discord slash commands — type `/` in any channel to see the available options.
 
-### Configuration
+### Setup
 | Command | Description |
 |---------|-------------|
 | `/pzsetup` | Open the interactive bot configuration panel |
@@ -206,3 +194,37 @@ Gated by the **restart roles** configured in `/pzsetup`, plus guild administrato
 | `/pzgetoption` | Get the value of a server option |
 | `/pzrequestaccess` | Request access to the PZ server |
 | `/whatareyou` | Bot info |
+
+## Development
+
+For running the bot locally against a test guild. Production does not use this path:
+`deploy/bootstrap.sh` builds its own virtualenv and reads its token from
+`/etc/pzbot/env`.
+
+```bash
+git clone https://github.com/aolmosj/project_zomboid_bot.git
+cd project_zomboid_bot
+python3 -m venv .venv
+source .venv/bin/activate          # .venv\Scripts\activate on Windows
+pip install -r requirements.txt
+
+cp .env.sample .env                # then put your DISCORD_TOKEN in it
+python pzbot.py
+```
+
+`.env` is read by python-dotenv and is development-only. Under systemd the token comes
+from the environment instead, and `load_dotenv()` does not override it.
+
+The database defaults to `guild_config.db` next to the checkout, and `PZBOT_DB`
+overrides that — which is how a deployment keeps its state outside the code. Point it
+at a scratch file to avoid touching a real one:
+
+```bash
+PZBOT_DB=/tmp/pzbot-dev.db python pzbot.py
+```
+
+Schema changes go in `init_db()` in `lib/guild_config.py`, in both the `CREATE TABLE`
+and `NEW_COLUMNS`: `CREATE TABLE IF NOT EXISTS` never alters an existing database, so
+new columns are added by the idempotent `ALTER TABLE` loop.
+
+There is no test suite. Verification is manual, against a test guild.
