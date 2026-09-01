@@ -25,7 +25,11 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 class PZBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            command_prefix="!",
+            # There are no prefix commands: every command is a slash command.
+            # Mention-only is the one prefix discord.py accepts without the
+            # message content intent, so this keeps a spurious warning off
+            # every start-up log line.
+            command_prefix=commands.when_mentioned,
             activity=discord.Activity(type=discord.ActivityType.custom,
             name="custom",
             state="Project Zomboid"),
