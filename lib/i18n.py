@@ -357,12 +357,12 @@ MESSAGES = {
         "es": "RCON no est\u00e1 configurado, as\u00ed que no se puede avisar a los jugadores ni guardar la partida. Config\u00faralo con `/pzsetup`, o elige `Now` para reiniciar sin ninguna de las dos cosas.",
     },
     "restart_aborted": {
-        "en": "\u26d4 Restart aborted: the warning could not be sent to players.\n{error}",
-        "es": "\u26d4 Reinicio abortado: no se pudo enviar el aviso a los jugadores.\n{error}",
+        "en": "\u26d4 Restart aborted: the warning could not be sent to players.\n{error}\nIf you need to restart anyway, run `/pzrestart` with the `Now` option, which does not use RCON.",
+        "es": "\u26d4 Reinicio abortado: no se pudo enviar el aviso a los jugadores.\n{error}\nSi necesitas reiniciar igualmente, usa `/pzrestart` con la opci\u00f3n `Now`, que no depende de RCON.",
     },
     "restart_save_failed": {
-        "en": "\u26d4 Restart aborted: the world could not be saved, and restarting now would lose everything not yet written.\n{error}",
-        "es": "\u26d4 Reinicio abortado: no se pudo guardar el mundo, y reiniciar ahora perder\u00eda todo lo no escrito.\n{error}",
+        "en": "\u26d4 Restart aborted: the world could not be saved, and restarting now would lose everything not yet written.\n{error}\nIf the server is stuck and restarting it is worth that loss, run `/pzrestart` with the `Now` option.",
+        "es": "\u26d4 Reinicio abortado: no se pudo guardar el mundo, y reiniciar ahora perder\u00eda todo lo no escrito.\n{error}\nSi el servidor est\u00e1 atascado y compensa asumir esa p\u00e9rdida, usa `/pzrestart` con la opci\u00f3n `Now`.",
     },
     "restart_requested": {
         "en": "\U0001f504 Restart requested by {user}. The server will be back shortly.\n**Reason:** {reason}",
