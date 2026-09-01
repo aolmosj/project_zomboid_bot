@@ -61,20 +61,85 @@ permission to manage the gameserver, not just read it.
 
 ## Deployment
 
-Run the bot under systemd so it restarts on failure, comes back after a reboot, and
-logs somewhere that survives:
+Run the bot under systemd rather than a terminal multiplexer: it comes back after a
+crash or a reboot, and its output goes somewhere that outlives a scrollback buffer.
+
+### Install
+
+`PZ-Command-Bot.service` ships the unit. It hardcodes the paths of one particular
+host, so **edit `WorkingDirectory` and `ExecStart` to match your checkout before
+copying it**, then:
 
 ```bash
-cp PZ-Command-Bot.service /etc/systemd/system/pzbot.service   # edit the paths first
-systemctl daemon-reload
-systemctl enable --now pzbot
-journalctl -u pzbot -f
+sudo cp PZ-Command-Bot.service /etc/systemd/system/pzbot.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now pzbot
 ```
 
-Logging goes to stdout and therefore to the journal, which handles rotation and
-retention. The bot enables `root_logger`, so discord.py's own messages and any
-unhandled exception in a background task are captured too — a restart countdown that
-dies must leave a trace.
+`ExecStart` must point at the **virtualenv's** interpreter, not the system one — the
+bot's dependencies are not installed system-wide. `-u` keeps output unbuffered so log
+lines reach the journal as they happen.
+
+If the bot was previously started by hand (a `screen` or `tmux` session, a bare
+`python pzbot.py`), **stop it first**. Two instances answer the same slash command
+twice and both act on it.
+
+### Verify
+
+```bash
+systemctl status pzbot --no-pager
+journalctl -u pzbot -n 30 --no-pager
+```
+
+A healthy start logs `logging in using static token` and then
+`Shard ID None has connected to Gateway`. To confirm there is exactly one instance —
+`pgrep` matches its own command line, so ask systemd instead:
+
+```bash
+systemd-cgls -u pzbot.service --no-pager
+```
+
+### Logs
+
+Everything goes to the journal, which handles rotation and retention:
+
+```bash
+journalctl -u pzbot -f            # follow
+journalctl -u pzbot --since today
+```
+
+The bot passes `root_logger=True` to `run()`, so discord.py's own messages, anything
+logged by the cogs, and unhandled exceptions raised inside background tasks all land
+there. That last one matters: a restart countdown runs detached from the interaction
+that started it, and the only trace of one dying is asyncio's "Task exception was
+never retrieved".
+
+### Update
+
+```bash
+cd /path/to/checkout && git pull
+sudo systemctl restart pzbot
+```
+
+Re-copy the unit and `daemon-reload` only when `PZ-Command-Bot.service` itself
+changed. `guild_config.db` lives in `WorkingDirectory` and is never touched by a pull;
+back it up separately, since it holds the RCON password, the Nitrado token and the
+registered users, and is gitignored.
+
+### Troubleshooting
+
+`Failed to determine user credentials: No such process` — the unit sets `User=` to an
+account that does not exist. systemd reports the NSS lookup failure with that errno,
+so read it as "no such user". The message is logged as `(python3)` rather than the
+unit's identifier because the process is forked but has not exec'd yet.
+
+`The unit files have no installation config` — the unit is missing its `[Install]`
+section, so it cannot be enabled. Usually means an older copy of the file was
+installed than the one you edited.
+
+`ModuleNotFoundError` on start — `ExecStart` is using the system interpreter instead
+of the venv, or the venv is missing dependencies: `.venv/bin/pip install -r
+requirements.txt`.
 
 ## Commands
 
