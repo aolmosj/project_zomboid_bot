@@ -21,6 +21,30 @@ Discord bot for managing your Project Zomboid server with multi-guild support an
   works without them
 - Python 3.10+ only for local development; a deployment builds its own virtualenv
 
+## Creating the Discord application
+
+1. Open the [Developer Portal](https://discord.com/developers/applications) and create
+   a **New Application**.
+2. Under **Bot**, press **Reset Token** and copy it. That value is `DISCORD_TOKEN`, and
+   it is shown only once.
+3. Under **Bot → Privileged Gateway Intents**, leave **all three off**. The bot
+   registers no gateway event handlers and works entirely through slash commands, so
+   it needs none of them. Enabling them would only widen what a leaked token reaches.
+4. Under **OAuth2 → URL Generator**, tick the `bot` and `applications.commands` scopes,
+   then the **View Channels** and **Send Messages** permissions. Nothing else: the bot
+   never edits or deletes anyone else's messages, and deleting its own needs no
+   permission. That is the URL you open to invite it.
+
+The ready-made equivalent, with your application's ID:
+
+```
+https://discord.com/api/oauth2/authorize?client_id=YOUR_APP_ID&permissions=3072&scope=bot%20applications.commands
+```
+
+Guild-wide permissions are not the whole story: a channel can override them. If the bot
+is silent in the notification channel while working everywhere else, check that channel's
+own permissions for the bot's role.
+
 ## Deployment
 
 Run the bot under systemd rather than a terminal multiplexer: it comes back after a
@@ -61,22 +85,6 @@ sudo systemctl restart pzbot
 
 Re-run `bootstrap.sh` instead when `requirements.txt` or `deploy/pzbot.service`
 changed; it is idempotent and ends by restarting the service.
-
-### Migrating an older install
-
-Earlier versions kept the database and the token inside the checkout. Move them out
-once, with the service stopped:
-
-```bash
-sudo systemctl stop pzbot
-sudo install -o pzbot -g pzbot -m 640 /old/checkout/guild_config.db /var/lib/pzbot/guild_config.db
-sudo grep '^DISCORD_TOKEN=' /old/checkout/.env | sudo tee /etc/pzbot/env
-sudo chown root:pzbot /etc/pzbot/env && sudo chmod 640 /etc/pzbot/env
-sudo /opt/pzbot/deploy/bootstrap.sh
-```
-
-`bootstrap.sh` refuses to run while a `guild_config.db` remains inside `/opt/pzbot`:
-two files of that name with only one of them read is a trap worth failing on.
 
 ### Verify
 

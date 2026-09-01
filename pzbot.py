@@ -29,7 +29,10 @@ class PZBot(commands.Bot):
             activity=discord.Activity(type=discord.ActivityType.custom,
             name="custom",
             state="Project Zomboid"),
-            intents=discord.Intents.all()
+            # Slash commands only, no gateway event handlers: none of the three
+            # privileged intents is used, and asking for them would make a fresh
+            # install refuse to connect until they were enabled in the portal.
+            intents=discord.Intents.default()
         )
 
     async def setup_hook(self):

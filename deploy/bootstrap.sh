@@ -54,7 +54,7 @@ fi
 # Refuse to start alongside a database still inside the checkout: two files
 # named guild_config.db, only one of them read, is a trap worth failing on.
 if [ -f "$APP_DIR/guild_config.db" ]; then
-    die "$APP_DIR/guild_config.db still exists. Move it to $STATE_DIR/guild_config.db (see the README) so there is only one database"
+    die "$APP_DIR/guild_config.db still exists. Move it to $STATE_DIR/guild_config.db so there is only one database"
 fi
 [ -f "$STATE_DIR/guild_config.db" ] || echo "note: no database yet at $STATE_DIR; it will be created empty on first start"
 
