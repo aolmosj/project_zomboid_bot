@@ -47,5 +47,4 @@ class PZBot(commands.Bot):
 
         await self.tree.sync()
 
-print("Starting bot")
-PZBot().run(TOKEN)
+PZBot().run(TOKEN, root_logger=True)

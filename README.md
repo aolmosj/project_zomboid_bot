@@ -59,6 +59,23 @@ stored per guild and is masked in *Show config*. Create the token at
 [server.nitrado.net](https://server.nitrado.net) under the developer/API section; it needs
 permission to manage the gameserver, not just read it.
 
+## Deployment
+
+Run the bot under systemd so it restarts on failure, comes back after a reboot, and
+logs somewhere that survives:
+
+```bash
+cp PZ-Command-Bot.service /etc/systemd/system/pzbot.service   # edit the paths first
+systemctl daemon-reload
+systemctl enable --now pzbot
+journalctl -u pzbot -f
+```
+
+Logging goes to stdout and therefore to the journal, which handles rotation and
+retention. The bot enables `root_logger`, so discord.py's own messages and any
+unhandled exception in a background task are captured too — a restart countdown that
+dies must leave a trace.
+
 ## Commands
 
 All commands are Discord slash commands — type `/` in any channel to see the available options.
@@ -94,7 +111,7 @@ Gated by the **restart roles** configured in `/pzsetup`, plus guild administrato
 
 | Command | Description |
 |---------|-------------|
-| `/pzrestart` | Restart the server via Nitrado. Warns players over RCON and saves the world first; the delay defaults to 1 minute, and the `Now` option skips both the warning and the save |
+| `/pzrestart` | Restart the server via Nitrado. Requires a **reason**, recorded in the notification channel and in Nitrado's activity log. Warns players over RCON and saves the world first; the delay defaults to 1 minute, and the `Now` option skips both the warning and the save |
 
 ### User Commands
 | Command | Description |

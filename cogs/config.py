@@ -1,9 +1,13 @@
 import asyncio
+import logging
+
 import discord
 from discord import app_commands, ui
 from discord.ext import commands
 from lib.guild_config import get_guild_config, set_guild_config, delete_guild_config, CONFIG_KEYS
 from lib.i18n import t
+
+log = logging.getLogger(__name__)
 
 EPHEMERAL_DELETE_DELAY = 120
 
@@ -243,8 +247,7 @@ class SetupView(ui.View):
         return True
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item):
-        import traceback
-        traceback.print_exception(type(error), error, error.__traceback__)
+        log.exception("setup panel failed", exc_info=error)
         if not interaction.response.is_done():
             await interaction.response.send_message(f"Error: {error}", ephemeral=True)
 

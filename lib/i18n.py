@@ -8,6 +8,26 @@ MESSAGES = {
         "en": "RCON is not configured yet. An admin needs to configure it via `/pzsetup`.",
         "es": "RCON aún no está configurado. Un admin debe configurarlo con `/pzsetup`.",
     },
+    "rcon_empty_response": {
+        "en": "The game server accepted the connection but did not answer. It may be frozen, starting up or overloaded.",
+        "es": "El servidor de juego acept\u00f3 la conexi\u00f3n pero no respondi\u00f3. Puede estar congelado, arrancando o saturado.",
+    },
+    "rcon_wrong_password": {
+        "en": "The game server rejected the RCON password. Check it with `/pzsetup`.",
+        "es": "El servidor de juego rechaz\u00f3 la contrase\u00f1a de RCON. Rev\u00edsala con `/pzsetup`.",
+    },
+    "rcon_session_timeout": {
+        "en": "The RCON session was lost midway through the command.",
+        "es": "La sesi\u00f3n RCON se perdi\u00f3 a mitad del comando.",
+    },
+    "rcon_timeout": {
+        "en": "The game server did not answer within {seconds} seconds.",
+        "es": "El servidor de juego no respondi\u00f3 en {seconds} segundos.",
+    },
+    "rcon_unreachable": {
+        "en": "Could not reach the game server at {host}:{port} ({error}).",
+        "es": "No se pudo contactar con el servidor de juego en {host}:{port} ({error}).",
+    },
     "rcon_error": {
         "en": "Could not connect to the game server: {error}",
         "es": "No se pudo conectar al servidor de juego: {error}",
@@ -301,12 +321,12 @@ MESSAGES = {
         "es": "Error de la API de Nitrado: {error}",
     },
     "restart_confirm_now": {
-        "en": "\u26a0\ufe0f This restarts the server **right now**, with no warning to players and **without saving**. Continue?",
-        "es": "\u26a0\ufe0f Esto reinicia el servidor **ahora mismo**, sin avisar a los jugadores y **sin guardar**. \u00bfContinuar?",
+        "en": "\u26a0\ufe0f This restarts the server **right now**, with no warning to players and **without saving**.\n**Reason:** {reason}\nContinue?",
+        "es": "\u26a0\ufe0f Esto reinicia el servidor **ahora mismo**, sin avisar a los jugadores y **sin guardar**.\n**Motivo:** {reason}\n\u00bfContinuar?",
     },
     "restart_confirm_delay": {
-        "en": "\u26a0\ufe0f Players will be warned and the server will restart in **{delay} min**. Continue?",
-        "es": "\u26a0\ufe0f Se avisar\u00e1 a los jugadores y el servidor se reiniciar\u00e1 en **{delay} min**. \u00bfContinuar?",
+        "en": "\u26a0\ufe0f Players will be warned and the server will restart in **{delay} min**.\n**Reason:** {reason}\nContinue?",
+        "es": "\u26a0\ufe0f Se avisar\u00e1 a los jugadores y el servidor se reiniciar\u00e1 en **{delay} min**.\n**Motivo:** {reason}\n\u00bfContinuar?",
     },
     "btn_confirm": {
         "en": "Confirm",
@@ -325,8 +345,8 @@ MESSAGES = {
         "es": "Reinicio cancelado.",
     },
     "restart_scheduled": {
-        "en": "Restart scheduled in {delay} min by {user}. Players are being warned.",
-        "es": "Reinicio programado en {delay} min por {user}. Se est\u00e1 avisando a los jugadores.",
+        "en": "Restart scheduled in {delay} min by {user}.\n**Reason:** {reason}",
+        "es": "Reinicio programado en {delay} min por {user}.\n**Motivo:** {reason}",
     },
     "restart_warning": {
         "en": "Server restarting in {minutes} minute(s). Please find a safe spot.",
@@ -337,12 +357,16 @@ MESSAGES = {
         "es": "RCON no est\u00e1 configurado, as\u00ed que no se puede avisar a los jugadores ni guardar la partida. Config\u00faralo con `/pzsetup`, o elige `Now` para reiniciar sin ninguna de las dos cosas.",
     },
     "restart_aborted": {
-        "en": "Restart aborted: the warning could not be sent over RCON.",
-        "es": "Reinicio abortado: no se pudo enviar el aviso por RCON.",
+        "en": "\u26d4 Restart aborted: the warning could not be sent to players.\n{error}",
+        "es": "\u26d4 Reinicio abortado: no se pudo enviar el aviso a los jugadores.\n{error}",
+    },
+    "restart_save_failed": {
+        "en": "\u26d4 Restart aborted: the world could not be saved, and restarting now would lose everything not yet written.\n{error}",
+        "es": "\u26d4 Reinicio abortado: no se pudo guardar el mundo, y reiniciar ahora perder\u00eda todo lo no escrito.\n{error}",
     },
     "restart_requested": {
-        "en": "\U0001f504 Restart requested by {user}. The server will be back shortly.",
-        "es": "\U0001f504 Reinicio solicitado por {user}. El servidor volver\u00e1 en breve.",
+        "en": "\U0001f504 Restart requested by {user}. The server will be back shortly.\n**Reason:** {reason}",
+        "es": "\U0001f504 Reinicio solicitado por {user}. El servidor volver\u00e1 en breve.\n**Motivo:** {reason}",
     },
     "restart_failed": {
         "en": "The restart could not be requested: {error}",

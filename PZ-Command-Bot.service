@@ -1,9 +1,21 @@
+# Install with:
+#   cp PZ-Command-Bot.service /etc/systemd/system/pzbot.service
+#   systemctl daemon-reload && systemctl enable --now pzbot
+# Logs: journalctl -u pzbot -f
 [Unit]
 Description=Project Zomboid Discord Commands Bot
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
-User=steam
-Group=steam
-WorkingDirectory=/home/steam/pz_bot/
-ExecStart=-/usr/bin/python3 /home/steam/pz_bot/pzbot.py
+WorkingDirectory=/home/steam/pz_bot_revamped
+ExecStart=/home/steam/pz_bot_revamped/.pzbot-venv/bin/python -u pzbot.py
+Restart=always
+RestartSec=10
+SyslogIdentifier=pzbot
+
+[Install]
+WantedBy=multi-user.target

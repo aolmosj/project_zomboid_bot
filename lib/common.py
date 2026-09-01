@@ -1,48 +1,31 @@
+import asyncio
+import logging
+
+from rcon.exceptions import EmptyResponse, SessionTimeout, WrongPassword
 from rcon.source import rcon
+
 from lib.guild_config import get_guild_config
 from lib.i18n import t
 
+log = logging.getLogger(__name__)
 
-async def require_config(interaction):
-    if interaction.guild is None:
-        await interaction.response.send_message(
-            t(interaction.locale, "dm_not_allowed"), ephemeral=True
-        )
-        return None
-    config = await get_guild_config(interaction.guild.id)
-    if config is None:
-        await interaction.response.send_message(
-            t(interaction.locale, "not_configured"), ephemeral=True
-        )
-    return config
+# Most PZ commands answer in well under a second. save is the outlier: on a
+# large world it legitimately takes tens of seconds, and aborting one that was
+# about to finish is worse than waiting.
+RCON_TIMEOUT = 10
+RCON_SAVE_TIMEOUT = 60
 
 
-async def rcon_interaction_command(interaction, command):
-    config = await get_guild_config(interaction.guild.id)
-    if config is None:
-        await interaction.followup.send(
-            t(interaction.locale, "not_configured"), ephemeral=True
-        )
-        return None
-    if not config.get('rcon_pass'):
-        await interaction.followup.send(
-            t(interaction.locale, "rcon_not_configured"), ephemeral=True
-        )
-        return None
-    try:
-        response = await rcon(
-            command,
-            host=config['rcon_host'],
-            port=int(config['rcon_port']),
-            passwd=config['rcon_pass']
-        )
-        return response
-    except Exception as e:
-        print(e)
-        await interaction.followup.send(
-            t(interaction.locale, "rcon_error", error=e), ephemeral=True
-        )
-        return None
+class RconError(Exception):
+    """A command could not be delivered, carrying a key that renders for users."""
+
+    def __init__(self, key, **params):
+        super().__init__(key)
+        self.key = key
+        self.params = params
+
+    def localized(self, locale):
+        return t(locale, self.key, **self.params)
 
 
 def normalize_servermsg(message):
@@ -60,21 +43,119 @@ def normalize_servermsg(message):
     return message.replace('"', "'")
 
 
-async def servermsg(interaction, message):
-    """Broadcast an in-game message to every connected player.
+def servermsg_command(message):
+    """PZ expects the broadcast text in double quotes; unquoted it just replies
+    with its usage help instead of telling anyone anything."""
+    return 'servermsg "{}"'.format(normalize_servermsg(message))
 
-    PZ expects the text in double quotes; without them it answers with its
-    usage help instead of broadcasting anything.
+
+async def run_rcon(config, command, *, timeout=RCON_TIMEOUT):
+    """Send one command to the game server.
+
+    Raises RconError and reports nothing: the caller knows where its user is
+    listening. The library's own timeout= only covers the TCP connect, so the
+    whole exchange is wrapped instead.
     """
-    return await rcon_interaction_command(
-        interaction, 'servermsg "{}"'.format(normalize_servermsg(message))
-    )
+    try:
+        return await asyncio.wait_for(
+            rcon(
+                command,
+                host=config['rcon_host'],
+                port=int(config['rcon_port']),
+                passwd=config['rcon_pass'],
+            ),
+            timeout=timeout,
+        )
+    except EmptyResponse:
+        # Socket accepted, game loop silent: a frozen, starting or overloaded
+        # server looks exactly like this.
+        raise RconError("rcon_empty_response")
+    except WrongPassword:
+        raise RconError("rcon_wrong_password")
+    except SessionTimeout:
+        raise RconError("rcon_session_timeout")
+    except asyncio.TimeoutError:
+        # Must precede OSError: TimeoutError is a subclass of it.
+        raise RconError("rcon_timeout", seconds=timeout)
+    except OSError as e:
+        raise RconError(
+            "rcon_unreachable",
+            host=config.get('rcon_host'), port=config.get('rcon_port'), error=e,
+        )
+    except Exception as e:
+        # EmptyResponse taught us that an exception with no message renders as
+        # "failed: ", so fall back to the class name rather than nothing.
+        raise RconError("rcon_error", error=f"{type(e).__name__}: {e}" if str(e) else type(e).__name__)
+
+
+async def deliver(coro, *, what):
+    """Send a Discord message, or record why it could not be sent.
+
+    Reporting must never raise. A failure here would replace the error being
+    reported and take the caller down with it, which is how a restart countdown
+    once died leaving nothing behind but an unretrieved task exception.
+    """
+    try:
+        await coro
+        return True
+    except Exception as e:
+        log.warning("could not deliver %s: %s: %s", what, type(e).__name__, e)
+        return False
+
+
+async def require_config(interaction):
+    if interaction.guild is None:
+        await deliver(
+            interaction.response.send_message(t(interaction.locale, "dm_not_allowed"), ephemeral=True),
+            what="dm_not_allowed notice",
+        )
+        return None
+    config = await get_guild_config(interaction.guild.id)
+    if config is None:
+        await deliver(
+            interaction.response.send_message(t(interaction.locale, "not_configured"), ephemeral=True),
+            what="not_configured notice",
+        )
+    return config
+
+
+async def rcon_interaction_command(interaction, command, *, timeout=RCON_TIMEOUT):
+    """Run a command for a slash command that is waiting on its own reply."""
+    locale = interaction.locale
+    config = await get_guild_config(interaction.guild.id)
+    if config is None:
+        await deliver(
+            interaction.followup.send(t(locale, "not_configured"), ephemeral=True),
+            what="not_configured notice",
+        )
+        return None
+    if not config.get('rcon_pass'):
+        await deliver(
+            interaction.followup.send(t(locale, "rcon_not_configured"), ephemeral=True),
+            what="rcon_not_configured notice",
+        )
+        return None
+    try:
+        return await run_rcon(config, command, timeout=timeout)
+    except RconError as e:
+        log.warning("rcon %r failed: %s %s", command, e.key, e.params)
+        await deliver(
+            interaction.followup.send(e.localized(locale), ephemeral=True),
+            what="rcon error notice",
+        )
+        return None
+
+
+async def servermsg(interaction, message):
+    """Broadcast an in-game message to every connected player."""
+    return await rcon_interaction_command(interaction, servermsg_command(message))
 
 
 async def is_channel_allowed(interaction):
     if interaction.guild is None:
-        await interaction.response.send_message(
-            t(interaction.locale, "dm_not_allowed"), ephemeral=True
+        await deliver(
+            interaction.response.send_message(t(interaction.locale, "dm_not_allowed"), ephemeral=True),
+            what="dm_not_allowed notice",
         )
         return False
     config = await get_guild_config(interaction.guild.id)
@@ -85,8 +166,9 @@ async def is_channel_allowed(interaction):
         return True
     ignore_list = [int(cid) for cid in ignore_channels.split(',') if cid.strip()]
     if interaction.channel_id in ignore_list:
-        await interaction.response.send_message(
-            t(interaction.locale, "channel_blocked"), ephemeral=True
+        await deliver(
+            interaction.response.send_message(t(interaction.locale, "channel_blocked"), ephemeral=True),
+            what="channel_blocked notice",
         )
         return False
     return True
