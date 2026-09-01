@@ -40,16 +40,6 @@ id -u "$APP_USER" >/dev/null 2>&1 || \
 install -d -o "$APP_USER" -g "$APP_USER" -m 750 "$STATE_DIR"
 install -d -o root -g "$APP_USER" -m 750 "$CONF_DIR"
 
-# --- application -------------------------------------------------------------
-# A venv bakes in absolute paths, so it is built where it will run and rebuilt
-# rather than moved. Pinned requirements keep a rebuild from changing versions.
-[ -x "$APP_DIR/.venv/bin/python" ] || python3 -m venv "$APP_DIR/.venv"
-"$APP_DIR/.venv/bin/pip" install -q --upgrade pip
-"$APP_DIR/.venv/bin/pip" install -q -r "$APP_DIR/requirements.txt"
-
-# Owned by root, run by pzbot: the service cannot rewrite its own code.
-chown -R root:root "$APP_DIR"
-
 # --- secrets -----------------------------------------------------------------
 if [ ! -f "$ENV_FILE" ]; then
     install -o root -g "$APP_USER" -m 640 "$APP_DIR/deploy/env.example" "$ENV_FILE"
@@ -67,6 +57,17 @@ if [ -f "$APP_DIR/guild_config.db" ]; then
     die "$APP_DIR/guild_config.db still exists. Move it to $STATE_DIR/guild_config.db (see the README) so there is only one database"
 fi
 [ -f "$STATE_DIR/guild_config.db" ] || echo "note: no database yet at $STATE_DIR; it will be created empty on first start"
+
+# --- application -------------------------------------------------------------
+# Last, because it is the slow step: everything that can refuse has refused by now.
+# A venv bakes in absolute paths, so it is built where it will run and rebuilt
+# rather than moved. Pinned requirements keep a rebuild from changing versions.
+[ -x "$APP_DIR/.venv/bin/python" ] || python3 -m venv "$APP_DIR/.venv"
+"$APP_DIR/.venv/bin/pip" install -q --upgrade pip
+"$APP_DIR/.venv/bin/pip" install -q -r "$APP_DIR/requirements.txt"
+
+# Owned by root, run by pzbot: the service cannot rewrite its own code.
+chown -R root:root "$APP_DIR"
 
 # --- service -----------------------------------------------------------------
 install -o root -g root -m 644 "$APP_DIR/deploy/pzbot.service" "$UNIT"
