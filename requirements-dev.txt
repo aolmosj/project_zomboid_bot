@@ -1,0 +1,4 @@
+# Test-only. requirements.txt is what gets installed on the server; keep it minimal.
+-r requirements.txt
+pytest==8.4.2
+pytest-asyncio==1.3.0

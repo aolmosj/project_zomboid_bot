@@ -8,6 +8,19 @@ class NitradoError(Exception):
     """Nitrado API failure, carrying a message safe to show to users."""
 
 
+# The unmapped branch forwards the API's own words into a Discord message, so
+# it is bounded and scrubbed rather than trusted: the length is not ours to
+# choose, and a token must never travel back out however it got in there.
+DETAIL_MAX = 200
+
+
+def _detail(payload, status, token):
+    detail = str(payload.get("message") or "").strip() or f"HTTP {status}"
+    if token and token in detail:
+        detail = detail.replace(token, "<token>")
+    return detail[:DETAIL_MAX]
+
+
 def _headers(token):
     return {"Authorization": f"Bearer {token}", "Accept": "application/json"}
 
@@ -30,8 +43,7 @@ async def _request(method, path, token, **kwargs):
                 if resp.status == 429:
                     raise NitradoError("Nitrado API rate limit reached, try again later")
                 if resp.status >= 400 or payload.get("status") != "success":
-                    detail = payload.get("message") or f"HTTP {resp.status}"
-                    raise NitradoError(str(detail))
+                    raise NitradoError(_detail(payload, resp.status, token))
                 return payload
     except aiohttp.ClientError as e:
         raise NitradoError(f"Could not reach the Nitrado API: {e}")

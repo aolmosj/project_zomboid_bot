@@ -235,4 +235,20 @@ Schema changes go in `init_db()` in `lib/guild_config.py`, in both the `CREATE T
 and `NEW_COLUMNS`: `CREATE TABLE IF NOT EXISTS` never alters an existing database, so
 new columns are added by the idempotent `ALTER TABLE` loop.
 
-There is no test suite. Verification is manual, against a test guild.
+### Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+Nothing under `lib/` imports discord, so most of the suite needs no test doubles.
+`tests/conftest.py` holds the small fakes the cogs need — an interaction, a guild and a
+channel — plus a `db` fixture that points `DB_PATH` at a temp file and clears the
+module-level cache.
+
+The tests are regression tests: nearly every one corresponds to a failure that reached
+production once. When fixing a bug, add the test that would have caught it.
+
+CI runs the suite on Python 3.10 to 3.12, lints `deploy/bootstrap.sh`, validates the
+systemd unit, and runs the provisioning script end to end in a container.

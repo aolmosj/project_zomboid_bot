@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.12 is what production runs; 3.10 is what the README claims as the floor.
+        python: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  deploy-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell syntax and lint
+        run: |
+          bash -n deploy/bootstrap.sh
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck deploy/bootstrap.sh
+      - name: systemd unit is valid
+        run: |
+          # verify resolves ExecStart, so give it something to find. This checks
+          # the directives, not the paths.
+          sudo mkdir -p /opt/pzbot/.venv/bin
+          sudo touch /opt/pzbot/.venv/bin/python && sudo chmod +x /opt/pzbot/.venv/bin/python
+          systemd-analyze verify deploy/pzbot.service
+
+  bootstrap:
+    # Runs the provisioning script end to end against a stub systemctl. Doing
+    # this by hand once already found a real defect.
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    steps:
+      - name: Dependencies the runner image lacks
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq git python3-venv ca-certificates
+      - uses: actions/checkout@v4
+        with:
+          path: checkout
+      - name: Provision at the location the unit expects
+        run: |
+          mkdir -p /opt && cp -r checkout /opt/pzbot
+          mkdir -p /opt/fakebin
+          printf '#!/bin/sh\nexit 0\n' > /opt/fakebin/systemctl
+          chmod +x /opt/fakebin/systemctl
+      - name: A clean install stops at the placeholder token
+        run: |
+          export PATH=/opt/fakebin:$PATH
+          if /opt/pzbot/deploy/bootstrap.sh; then echo "should have refused"; exit 1; fi
+          test ! -d /opt/pzbot/.venv   # and refuses before the slow step
+      - name: With a token it completes, and is idempotent
+        run: |
+          export PATH=/opt/fakebin:$PATH
+          echo "DISCORD_TOKEN=ci-placeholder" > /etc/pzbot/env
+          /opt/pzbot/deploy/bootstrap.sh
+          /opt/pzbot/deploy/bootstrap.sh
+          /opt/pzbot/.venv/bin/python -c "import discord, rcon, aiosqlite, aiohttp, dotenv"
+      - name: It refuses a database left inside the checkout
+        run: |
+          export PATH=/opt/fakebin:$PATH
+          touch /opt/pzbot/guild_config.db
+          if /opt/pzbot/deploy/bootstrap.sh; then echo "should have refused"; exit 1; fi
